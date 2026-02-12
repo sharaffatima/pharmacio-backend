@@ -38,6 +38,17 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'rest_framework',
+
+    # Local apps
+    "users",
+    "rbac",
+    "files",
+    "ai_integration",
+    "inventory",
+    "sales",
+    "capital",
+    "purchases",
+    "notifications",
 ]
 
 MIDDLEWARE = [
