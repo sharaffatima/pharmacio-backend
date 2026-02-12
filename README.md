@@ -56,51 +56,91 @@ The backend is responsible for:
 
 ## Repository Structure
 
+```text
 pharmacio-backend/
-│
-├── config/ # Django project configuration
-│ ├── settings.py # Global settings (DB, apps, env vars)
-│ ├── urls.py # Root URL configuration
-│ ├── asgi.py # ASGI entrypoint
-│ └── wsgi.py # WSGI entrypoint
-│
-├── users/ # User management (extends Django auth)
-├── rbac/ # Role-Based Access Control logic
-├── files/ # File upload handling & metadata
-├── ai_integration/ # AI/OCR communication layer
-├── inventory/ # Inventory domain (stock management)
-├── sales/ # Sales history & demand tracking
-├── capital/ # Financial tracking (capital changes)
-├── purchases/ # Purchase proposals & approval workflow
-├── notifications/ # Notification system & alert logging
-│
-├── manage.py # Django management CLI
-├── requirements.txt # Python dependencies
-├── Dockerfile # Backend container definition
-├── docker-compose.yml # Local dev stack (backend + DB + Redis)
-├── .env.example # Example environment variables (no secrets)
+├── config/            # Django project configuration (settings, URLs, WSGI/ASGI)
+├── users/             # User management (extends Django auth)
+├── rbac/              # Role-Based Access Control logic
+├── files/             # File upload handling & metadata
+├── ai_integration/    # AI / OCR engine integration
+├── inventory/         # Inventory & stock management
+├── sales/             # Sales history & demand tracking
+├── capital/           # Financial / capital tracking
+├── purchases/         # Purchase proposals & approval workflow
+├── notifications/     # Notification system & alerting
+├── manage.py          # Django CLI entrypoint
+├── requirements.txt   # Python dependencies
+├── Dockerfile         # Container image definition
+├── docker-compose.yml # Local dev stack (DB, Redis, worker, backend)
+└── .env.example       # Example environment variables (no secrets)
+```
+
+---
 
 ## Getting Started
 
-1. Clone Repository
-   `git clone <repo-url>`
-   `cd pharmacio-backend`
+Quick, 3-step setup for new developers (Docker recommended):
 
-2. Environment variables
-   Copy the example file:
-   `Copy-Item .env.example .env` (Windows)
-   Open .env and adjust values if needed (defaults should work for local dev).
+### Prerequisites
 
-3. Run with Docker
-   `docker compose up --build`
-   or `docker compose up --build -d` to run in the background
-   Thi starts Django backend, PostgreSQL databse and Redis
+- Docker & Docker Compose
+- Python 3.10+ (for local venv workflows)
+- Git
+- (Optional) WSL2 on Windows for best Docker/CLI experience
 
-4. Verify it works
-   http://localhost:8000/health/
+### 1) Clone the repo
 
-You can view the logs with
-`docker compose logs -f backend`
+```bash
+git clone <repo-url>
+cd pharmacio-backend
+```
 
-Or Stop the services with
-`docker compose down`
+### 2) Environment
+
+Copy the example env file and adjust if needed:
+
+Windows:
+
+```bash
+Copy-Item .env.example .env
+```
+
+Or (cross-platform):
+
+```bash
+cp .env.example .env
+```
+
+At minimum set `DATABASE_URL` and `SECRET_KEY` when running outside Docker.
+
+### 3) Run (Docker)
+
+```bash
+docker compose up --build -d
+```
+
+- The stack includes the Django backend, PostgreSQL and Redis by default.
+- Default backend URL: `http://localhost:8000` (health: `/health/`).
+
+Run migrations and create an admin user (replace `<service>` with `backend` or `web` depending on your compose file):
+
+```bash
+docker compose exec <service> python manage.py migrate
+docker compose exec <service> python manage.py createsuperuser
+```
+
+### Useful commands
+
+| Command                               | Purpose                    |
+| ------------------------------------- | -------------------------- |
+| `python manage.py migrate`            | Apply DB migrations        |
+| `python manage.py createsuperuser`    | Create admin user          |
+| `python manage.py loaddata <fixture>` | Load fixture data          |
+| `docker compose logs -f`              | Follow service logs        |
+| `docker compose down`                 | Stop and remove containers |
+
+### Troubleshooting & tips
+
+- If DB connection fails, start only the DB: `docker compose up -d postgres` or ensure local Postgres is running.
+- If unsure which service name to use for `docker compose exec`, run `docker compose ps` to check service names.
+- Prefer WSL2 on Windows for best compatibility with Docker and development tools.
