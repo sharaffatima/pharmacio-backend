@@ -54,6 +54,53 @@ The backend is responsible for:
 - Containerization: Docker & Docker Compose
 - CI: GitHub Actions
 
-## Repository Strcucture
+## Repository Structure
+
+pharmacio-backend/
+│
+├── config/ # Django project configuration
+│ ├── settings.py # Global settings (DB, apps, env vars)
+│ ├── urls.py # Root URL configuration
+│ ├── asgi.py # ASGI entrypoint
+│ └── wsgi.py # WSGI entrypoint
+│
+├── users/ # User management (extends Django auth)
+├── rbac/ # Role-Based Access Control logic
+├── files/ # File upload handling & metadata
+├── ai_integration/ # AI/OCR communication layer
+├── inventory/ # Inventory domain (stock management)
+├── sales/ # Sales history & demand tracking
+├── capital/ # Financial tracking (capital changes)
+├── purchases/ # Purchase proposals & approval workflow
+├── notifications/ # Notification system & alert logging
+│
+├── manage.py # Django management CLI
+├── requirements.txt # Python dependencies
+├── Dockerfile # Backend container definition
+├── docker-compose.yml # Local dev stack (backend + DB + Redis)
+├── .env.example # Example environment variables (no secrets)
 
 ## Getting Started
+
+1. Clone Repository
+   `git clone <repo-url>`
+   `cd pharmacio-backend`
+
+2. Environment variables
+   Copy the example file:
+   `Copy-Item .env.example .env` (Windows)
+   Open .env and adjust values if needed (defaults should work for local dev).
+
+3. Run with Docker
+   `docker compose up --build`
+   or `docker compose up --build -d` to run in the background
+   Thi starts Django backend, PostgreSQL databse and Redis
+
+4. Verify it works
+   http://localhost:8000/health/
+
+You can view the logs with
+`docker compose logs -f backend`
+
+Or Stop the services with
+`docker compose down`
