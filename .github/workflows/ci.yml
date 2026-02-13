@@ -27,6 +27,14 @@ jobs:
         run: |
           python -m compileall -q .
 
+      - name: Django system check
+        env:
+          DJANGO_SECRET_KEY: ci-not-a-secret
+          DJANGO_DEBUG: "False"
+          DJANGO_ALLOWED_HOSTS: "localhost,127.0.0.1"
+        run: |
+          python manage.py check
+
       - name: Run unit tests
         env:
           DJANGO_SECRET_KEY: ci-not-a-secret
