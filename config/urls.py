@@ -17,11 +17,23 @@ Including another URLconf
 from django.contrib import admin
 from django.urls import path
 from django.http import JsonResponse
+from django.db import connection
 
 def health(request):
     return JsonResponse({"status": "ok"})
 
+def health_db(request):
+    try:
+        with connection.cursor() as cursor:
+            cursor.execute("SELECT 1;")
+            cursor.fetchone()
+        return JsonResponse({"status": "ok", "db": "ok"})
+    except Exception as e:
+        return JsonResponse({"status": "degraded", "db": "error", "detail": str(e)}, status=503)
+    
+
 urlpatterns = [
     path('admin/', admin.site.urls),
     path("health/", health),
+    path("health/db/", health_db),
 ]
