@@ -91,16 +91,27 @@ WSGI_APPLICATION = 'config.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
 
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.postgresql',
-        'NAME': os.getenv("DB_NAME", "pharmacio"),
-        'USER': os.getenv("DB_USER", "pharmacio"),
-        'PASSWORD': os.getenv("DB_PASSWORD", "change-me"),
-        'HOST': os.getenv("DB_HOST", "localhost"),
-        'PORT': os.getenv("DB_PORT", "5432"),
+USE_POSTGRES = os.getenv("DB_HOST") is not None  # Docker sets DB_HOST=db
+
+if USE_POSTGRES:
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.postgresql',
+            'NAME': os.getenv("DB_NAME", "pharmacio"),
+            'USER': os.getenv("DB_USER", "pharmacio"),
+            'PASSWORD': os.getenv("DB_PASSWORD", "change-me"),
+            'HOST': os.getenv("DB_HOST", "localhost"),
+            'PORT': os.getenv("DB_PORT", "5432"),
+        }
     }
-}
+else:
+    DATABASES = {
+        "default": {
+            "ENGINE": "django.db.backends.sqlite3",
+            "NAME": BASE_DIR / "db.sqlite3",
+        }
+    }
+    
 
 
 # Password validation
