@@ -58,6 +58,13 @@ class User(AbstractUser):
         return f"{self.username} ({self.role or 'No Role'})"
 
     @property
+    def name(self):
+        full = self.get_full_name()
+        if full and full.strip():
+            return full
+        return self.username
+
+    @property
     def is_admin(self):
         return self.role == 'admin'
 

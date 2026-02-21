@@ -71,32 +71,6 @@ class Role(models.Model):
     def __str__(self):
         return self.name
 
-class Role(models.Model):
-
-    name = models.CharField(_('name'), max_length=50, unique=True)
-    description = models.TextField(_('description'), blank=True)
-    permissions = models.ManyToManyField(
-        Permission,
-        verbose_name=_('permissions'),
-        blank=True,
-        related_name='roles',
-        through='RolePermission'
-    )
-    is_system = models.BooleanField(
-        _('system role'),
-        default=False,
-        help_text=_('System roles cannot be deleted')
-    )
-    created_at = models.DateTimeField(_('created at'), auto_now_add=True)
-    updated_at = models.DateTimeField(_('updated at'), auto_now=True)
-
-    class Meta:
-        db_table = 'rbac_roles'
-        verbose_name = _('role')
-        verbose_name_plural = _('roles')
-
-    def __str__(self):
-        return self.name
 
 
 class RolePermission(models.Model):
