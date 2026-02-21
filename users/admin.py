@@ -8,7 +8,7 @@ from .models import User
 class UserAdmin(DjangoUserAdmin):
     model = User
     ordering = ("email",)
-    list_display = ("email", "name", "is_active", "is_staff", "is_superuser")
+    list_display = ("email", "username", "is_active", "is_staff", "is_superuser")
     search_fields = ("email", "username", "first_name", "last_name")
 
     fieldsets = (
@@ -26,10 +26,3 @@ class UserAdmin(DjangoUserAdmin):
     )
 
     filter_horizontal = ("groups", "user_permissions")
-
-    @admin.display(description="Name")
-    def name(self, obj):
-        full = obj.get_full_name()
-        if full and full.strip():
-            return full
-        return obj.username
