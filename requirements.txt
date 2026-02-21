@@ -6,3 +6,4 @@ psycopg2-binary==2.9.11; python_version >= '3.9'
 python-dotenv==1.2.1; python_version >= '3.9'
 sqlparse==0.5.5; python_version >= '3.8'
 tzdata==2025.3; python_version >= '2'
+djangorestframework-simplejwt==5.5.1

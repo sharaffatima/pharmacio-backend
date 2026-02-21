@@ -15,7 +15,7 @@ Including another URLconf
     2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
 """
 from django.contrib import admin
-from django.urls import path
+from django.urls import path,include
 from django.http import JsonResponse
 from django.db import connection
 
@@ -36,4 +36,6 @@ urlpatterns = [
     path('admin/', admin.site.urls),
     path("health/", health),
     path("health/db/", health_db),
+    path('api/', include('users.urls')),
+    path('api/rbac/', include('rbac.urls')),
 ]

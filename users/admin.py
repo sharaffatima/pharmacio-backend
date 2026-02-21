@@ -8,12 +8,12 @@ from .models import User
 class UserAdmin(DjangoUserAdmin):
     model = User
     ordering = ("email",)
-    list_display = ("email", "name", "is_active", "is_staff", "is_superuser")
-    search_fields = ("email", "name")
+    list_display = ("email", "username", "is_active", "is_staff", "is_superuser")
+    search_fields = ("email", "username", "first_name", "last_name")
 
     fieldsets = (
         (None, {"fields": ("email", "password")}),
-        ("Personal info", {"fields": ("name",)}),
+        ("Personal info", {"fields": ("first_name", "last_name", "phone_number")}),
         ("Permissions", {"fields": ("is_active", "is_staff", "is_superuser", "groups", "user_permissions")}),
         ("Important dates", {"fields": ("last_login",)}),
     )
@@ -21,7 +21,7 @@ class UserAdmin(DjangoUserAdmin):
     add_fieldsets = (
         (None, {
             "classes": ("wide",),
-            "fields": ("email", "name", "password1", "password2", "is_active", "is_staff", "is_superuser"),
+            "fields": ("email", "first_name", "last_name", "password1", "password2", "is_active", "is_staff", "is_superuser"),
         }),
     )
 
