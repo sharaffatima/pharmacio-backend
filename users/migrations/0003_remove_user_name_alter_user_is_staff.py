@@ -9,14 +9,6 @@ class Migration(migrations.Migration):
         ('users', '0002_user_groups_user_is_staff_user_is_superuser_and_more'),
     ]
 
-    operations = [
-        migrations.RemoveField(
-            model_name='user',
-            name='name',
-        ),
-        migrations.AlterField(
-            model_name='user',
-            name='is_staff',
-            field=models.BooleanField(default=False, help_text='Designates whether the user can log into this admin site.', verbose_name='staff status'),
-        ),
-    ]
+    operations = []
+
+# This migration previously removed the `name` field and altered `is_staff` to be a BooleanField. Since the `name` field was never added in 0001_initial, and `is_staff` is already a BooleanField in 0001_initial, we can leave this migration empty to prevent missing-column or duplicate operations when creating a fresh database for development or tests.
