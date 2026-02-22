@@ -12,3 +12,9 @@ class File(models.Model):
     def __str__(self):
         return self.original_filename
     
+    class Meta:
+        indexes = [
+            models.Index(fields=['status']),
+            models.Index(fields=['created_at']),
+        ]
+
