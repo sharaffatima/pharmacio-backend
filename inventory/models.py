@@ -22,7 +22,7 @@ class Inventory(models.Model):
         ]
         constraints = [
         models.CheckConstraint(
-            condition=models.Q(quantity__gte=0),
+            condition=models.Q(quantity_on_hand__gte=0),
             name="quantity_non_negative"
         )
     ]
