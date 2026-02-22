@@ -1,6 +1,5 @@
 from django.db import models
 import uuid
-# Create your models here.
 
 class Inventory(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
@@ -12,3 +11,18 @@ class Inventory(models.Model):
 
     def __str__(self):
         return self.drug_name
+    
+    class Meta:
+        indexes = [
+            models.Index(fields=['drug_name']),
+            models.Index(fields=['strength']),
+            models.Index(fields=['quantity_on_hand']),
+            models.Index(fields=['min_threshold']),
+            models.Index(fields=['updated_at']),
+        ]
+        constraints = [
+        models.CheckConstraint(
+            condition=models.Q(quantity__gte=0),
+            name="quantity_non_negative"
+        )
+    ]
