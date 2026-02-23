@@ -52,7 +52,6 @@ INSTALLED_APPS = [
     "ai_integration",
     "inventory",
     "sales",
-    "capital",
     "purchases",
     "notifications",
 ]

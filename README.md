@@ -16,10 +16,10 @@ The backend is responsible for:
 - Accepting and registering uploaded warehouse offer files (PDFs)
 - Dispatching OCR requests to the AI/OCR Engine
 - Receiving, validating, and storing structured OCR results
-- Managing inventory, sales history, and capital data
+- Managing inventory and sales history
 - Generating purchase proposals based on offers and internal data
 - Enforcing approval workflows and business rules
-- Updating inventory and capital only after approval
+- Updating inventory only after approval
 - Monitoring stock levels and creating alerts
 - Enforcing role-based access control (RBAC)
 
@@ -43,7 +43,7 @@ The backend is responsible for:
 - File intake & metadata
 - OCR result handling
 - Proposal & approval workflow
-- Inventory & capital management
+- Inventory management
 - Monitoring & notifications
 
 ## Tech Stack
@@ -65,7 +65,6 @@ pharmacio-backend/
 ├── ai_integration/    # AI / OCR engine integration
 ├── inventory/         # Inventory & stock management
 ├── sales/             # Sales history & demand tracking
-├── capital/           # Financial / capital tracking
 ├── purchases/         # Purchase proposals & approval workflow
 ├── notifications/     # Notification system & alerting
 ├── manage.py          # Django CLI entrypoint
