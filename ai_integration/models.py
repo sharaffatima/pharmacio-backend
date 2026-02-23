@@ -1,10 +1,8 @@
 from django.db import models
-import uuid
 
 # Create your models here.
 
 class OCRResult(models.Model):
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     drug_name = models.CharField(max_length=255)
     company = models.CharField(max_length=255)
     strength = models.CharField(max_length=255)
