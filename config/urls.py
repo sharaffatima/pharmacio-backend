@@ -36,6 +36,6 @@ urlpatterns = [
     path('admin/', admin.site.urls),
     path("health/", health),
     path("health/db/", health_db),
-    path('api/', include('users.urls')),
-    path('api/rbac/', include('rbac.urls')),
+    path('api/v1/', include('users.urls')),
+    path('api/v1/rbac/', include('rbac.urls')),
 ]

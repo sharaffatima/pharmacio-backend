@@ -126,7 +126,7 @@ class ChangePasswordView(APIView):
 
 class AdminRegisterView(generics.CreateAPIView):
     """
-    POST /api/auth/admin/register/
+    POST /api/v1/auth/admin/register/
     """
     queryset = User.objects.all()
     serializer_class = AdminRegisterSerializer
