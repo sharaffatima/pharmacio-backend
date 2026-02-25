@@ -14,7 +14,7 @@ from rest_framework import status
 
 
 class AuthApiTests(APITestCase):
-    API_PREFIX = "/api"
+    API_PREFIX = "/api/v1"
 
     def setUp(self):
         User = get_user_model()
@@ -42,16 +42,16 @@ class AuthApiTests(APITestCase):
 
     def test_protected_endpoint_requires_auth_401(self):
         """
-        GET /auth/profile/ without token should return 401.
+        GET /auth/me/ without token should return 401.
         """
-        url = f"{self.API_PREFIX}/auth/profile/"
+        url = f"{self.API_PREFIX}/auth/me/"
         res = self.client.get(url)
 
         self.assertEqual(res.status_code, status.HTTP_401_UNAUTHORIZED)
 
     def test_protected_endpoint_with_token_returns_200(self):
         """
-        GET /auth/profile/ with token should return 200.
+        GET /auth/me/ with token should return 200.
         """
         login_url = f"{self.API_PREFIX}/auth/login/"
         login_payload = {"username": "testuser", "password": self.user_password}
@@ -63,8 +63,8 @@ class AuthApiTests(APITestCase):
 
         self.client.credentials(HTTP_AUTHORIZATION=f"Bearer {token}")
 
-        profile_url = f"{self.API_PREFIX}/auth/profile/"
-        profile_res = self.client.get(profile_url)
+        me_url = f"{self.API_PREFIX}/auth/me/"
+        me_res = self.client.get(me_url)
 
-        self.assertEqual(profile_res.status_code, status.HTTP_200_OK)
-        self.assertIn("email", profile_res.data)
+        self.assertEqual(me_res.status_code, status.HTTP_200_OK)
+        self.assertIn("email", me_res.data)

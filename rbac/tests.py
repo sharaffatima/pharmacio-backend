@@ -10,7 +10,7 @@ from rbac.models import Role, Permission, UserRole, RolePermission
 
 class RBACApiTests(APITestCase):
 
-    API_PREFIX = "/api/rbac"
+    API_PREFIX = "/api/v1/rbac"
 
     def setUp(self):
         User = get_user_model()
