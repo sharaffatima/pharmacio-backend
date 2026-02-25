@@ -1,7 +1,7 @@
 from django.db import models
 
 class Sale(models.Model):
-    drug_name = models.CharField(max_length=255)
+    product_name = models.CharField(max_length=255)
     strength = models.CharField(max_length=255)
     quantity_sold = models.IntegerField()
     unit_price = models.DecimalField(max_digits=10, decimal_places=2)
@@ -9,7 +9,7 @@ class Sale(models.Model):
 
     class Meta:
         indexes = [
-            models.Index(fields=['drug_name']),
+            models.Index(fields=['product_name']),
             models.Index(fields=['sold_at']),
         ]
         constraints = [

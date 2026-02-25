@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import OCRResult
+from .models import OCRResults
 # Register your models here.
 
-admin.site.register(OCRResult)
+admin.site.register(OCRResults)
