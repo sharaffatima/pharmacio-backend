@@ -116,3 +116,48 @@ class UserRole(models.Model):
 
     def __str__(self):
         return f"{self.user.username} - {self.role.name}"
+
+
+
+# Audit log for tracking sensetive actions (not just rbac)
+class AuditLog(models.Model):
+    ACTION_TYPES = (
+        # General actions --> Must be implemeted!!
+        ("proposal_approved", "Proposal Approved"),
+        ("proposal_rejected", "Proposal Rejected"),
+        ("inventory_adjusted", "Inventory Adjusted"),
+        ("capital_changed", "Capital Changed"),
+
+        # RBAC actions
+        ("assign_role", "Assign Role"),
+        ("revoke_role", "Revoke Role"),
+        ("create_permission", "Create Permission"),
+        ("delete_permission", "Delete Permission"),
+    )
+
+    actor = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True, blank=True,
+        on_delete=models.SET_NULL,
+        related_name="audit_logs"
+    )
+
+    action = models.CharField(max_length=64, choices=ACTION_TYPES)
+
+    # entity reference (generic)
+    entity_content_type = models.ForeignKey(
+        ContentType, null=True, blank=True, on_delete=models.SET_NULL
+    )
+    entity_object_id = models.CharField(max_length=64, null=True, blank=True)
+    entity_repr = models.CharField(max_length=255, blank=True, default="")
+
+    metadata = models.JSONField(default=dict, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        indexes = [
+            models.Index(fields=["action", "created_at"]),
+            models.Index(fields=["actor", "created_at"]),
+            models.Index(fields=["entity_content_type", "entity_object_id"]),
+        ]
+    

@@ -1,5 +1,6 @@
 from django.core.management.base import BaseCommand
 from django.contrib.auth import get_user_model
+from rbac.services.audit import create_audit_log
 from rbac.models import Role, Permission, UserRole
 
 User = get_user_model()
@@ -36,6 +37,14 @@ class Command(BaseCommand):
             admin_role.permissions.add(perm)
             self.stdout.write(
                 f"     Added {perm.code} permission to Admin role")
+            
+            # Log role creation in audit log
+            create_audit_log(
+                actor=None,
+                action="create_role",
+                entity=admin_role,
+                metadata={"source": "seed_rbac"},
+    )
         else:
             self.stdout.write("   Admin role already exists")
             if perm not in admin_role.permissions.all():
@@ -52,6 +61,14 @@ class Command(BaseCommand):
         )
         if created:
             self.stdout.write("   Created Pharmacist role (no permissions)")
+            
+            # Log role creation in audit log
+            create_audit_log(
+                actor=None,
+                action="create_role",
+                entity=pharmacist_role,
+                metadata={"source": "seed_rbac"},)
+
         else:
             self.stdout.write("   Pharmacist role already exists")
 
@@ -75,6 +92,18 @@ class Command(BaseCommand):
             )
             self.stdout.write(self.style.SUCCESS(
                 f"   Created default admin user: {default_username} / {default_password}"))
+            
+            # Log admin_user creation in audit log
+            admin_user.roles.add(admin_user)
+            create_audit_log(
+                actor=None,
+                action="created_admin_user",
+                entity=admin_user,
+                metadata={"admin_user_name": admin_user.name, "source": "seed_rbac"},
+            )
+
+
+
         else:
             self.stdout.write(
                 f"   Admin user already exists: {default_username}")
@@ -87,6 +116,15 @@ class Command(BaseCommand):
             )
             self.stdout.write(
                 f"   Assigned Admin role to {admin_user.username}")
+        
+            admin_user.roles.add(admin_role)
+            create_audit_log(
+                actor=None,
+                action="assign_role",
+                entity=admin_user,
+                metadata={"role": admin_role.name, "source": "seed_rbac"},
+                )
+
         else:
             self.stdout.write(
                 f"   {admin_user.username} already has Admin role")
