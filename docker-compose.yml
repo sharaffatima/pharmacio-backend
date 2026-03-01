@@ -27,9 +27,19 @@ services:
 
   redis:
     image: redis:7
-    container_name: pharmacio_redis
     ports:
       - "6379:6379"
+
+  celery:
+    build: .
+    command: celery -A config worker -l info
+    depends_on:
+      - redis
+      - db
+    environment:
+      - DJANGO_SETTINGS_MODULE=config.settings
+    volumes:
+      - .:/app
 
 volumes:
   postgres_data:

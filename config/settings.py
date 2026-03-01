@@ -97,8 +97,8 @@ if USE_POSTGRES:
             'ENGINE': 'django.db.backends.postgresql',
             'NAME': os.getenv("DB_NAME", "pharmacio"),
             'USER': os.getenv("DB_USER", "pharmacio"),
-            'PASSWORD': os.getenv("DB_PASSWORD", "change-me"),
-            'HOST': os.getenv("DB_HOST", "localhost"),
+            'PASSWORD': os.getenv("DB_PASSWORD"),
+            'HOST': os.getenv("DB_HOST", "db"),
             'PORT': os.getenv("DB_PORT", "5432"),
         }
     }
@@ -177,3 +177,12 @@ SIMPLE_JWT = {
 }
 
 AUTH_USER_MODEL = 'users.User'
+
+CELERY_BROKER_URL = os.getenv("CELERY_BROKER_URL")
+CELERY_RESULT_BACKEND = os.getenv("CELERY_RESULT_BACKEND")
+
+CELERY_ACCEPT_CONTENT = ["json"]
+CELERY_TASK_SERIALIZER = "json"
+CELERY_RESULT_SERIALIZER = "json"
+
+CELERY_TIMEZONE = "Europe/Berlin"
