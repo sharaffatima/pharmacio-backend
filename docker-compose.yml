@@ -33,6 +33,8 @@ services:
   celery:
     build: .
     command: celery -A config worker -l info
+    env_file:
+      - .env
     depends_on:
       - redis
       - db

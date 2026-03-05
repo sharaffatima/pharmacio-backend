@@ -1,5 +1,8 @@
 from celery import shared_task
 from ai_integration.models import OCRJob
+from ai_integration.services.ocr_dispatch import dispatch_to_ocr_engine, OCRDispatchError
+
+# Background task to dispatch OCR job to OCR engine.
 
 @shared_task(bind=True, max_retries=3)
 def dispatch_ocr_job(self, ocr_job_id: int):
@@ -9,17 +12,20 @@ def dispatch_ocr_job(self, ocr_job_id: int):
     """
     job = OCRJob.objects.select_related("file").get(id=ocr_job_id)
 
-    # Emark processing
+    # mark processing
     job.status = "processing"
     job.error_message = None
     job.save(update_fields=["status", "error_message", "updated_at"])
 
+    # Attempt dispatch to OCR engine and handle errors with retry logic
     try:
-        # TODO: call OCR engine here (later step)
-        # If success:
+        dispatch_to_ocr_engine(job=job)
+        # Engine accepted the job → DISPATCHED
+        job.status = "dispatched"
+        job.save(update_fields=["status", "updated_at"])
         return
 
-    except Exception as e:
+    except OCRDispatchError as e:
         job.retries += 1
         job.status = "failed"
         job.error_message = str(e)

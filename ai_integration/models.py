@@ -6,6 +6,7 @@ class OCRJob(models.Model):
     OCRJobStatus = [
         ('queued', 'Queued'),
         ('processing', 'Processing'),
+        ('dispatched', 'Dispatched'),
         ('completed', 'Completed'),
         ('failed', 'Failed'),
     ]
