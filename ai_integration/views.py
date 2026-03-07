@@ -1,3 +1,4 @@
+from django.db import transaction
 from django.utils import timezone
 from django.shortcuts import get_object_or_404
 from rest_framework.views import APIView
@@ -25,36 +26,37 @@ class OCRResultCallbackView(APIView):
         job_uuid = serializer.validated_data["job_id"]
         payload = serializer.validated_data["payload"]
 
-        try:
-            job = OCRJob.objects.select_related("file").get(job_id=job_uuid)
-        except OCRJob.DoesNotExist:
-            return Response({"detail": "Unknown job_id"}, status=status.HTTP_400_BAD_REQUEST)
+        with transaction.atomic():
+            try:
+                job = OCRJob.objects.select_related("file").select_for_update().get(job_id=job_uuid)
+            except OCRJob.DoesNotExist:
+                return Response({"detail": "Unknown job_id"}, status=status.HTTP_400_BAD_REQUEST)
 
-        # Create OCRResults row
-        result = OCRResults.objects.create(
-            job=job,
-            file=job.file,
-            ware_house_name=job.file.ware_house_name,
-            confidence_score=_overall_confidence(payload),
-            review_required=_review_required(payload),
-            status="completed",
-        )
-
-        # Create items
-        for item in payload.get("items", []):
-            OCRResultItem.objects.create(
-                ocr_result=result,
-                extracted_product_name=item.get("drug_name", ""),
-                extracted_strength=item.get("strength"),
-                extracted_company=item.get("company"),
-                extracted_quantity=1,
-                extracted_unit_price=item.get("price", 0) or 0,
+            # Create OCRResults row
+            result = OCRResults.objects.create(
+                job=job,
+                file=job.file,
+                ware_house_name=job.file.ware_house_name,
+                confidence_score=_overall_confidence(payload),
+                review_required=_review_required(payload),
+                status="completed",
             )
 
-        # Update job status to completed
-        job.status = "ocr_done"
-        job.error_message = None
-        job.save(update_fields=["status", "error_message", "updated_at"])
+            # Create items
+            for item in payload.get("items", []):
+                OCRResultItem.objects.create(
+                    ocr_result=result,
+                    extracted_product_name=item.get("drug_name", ""),
+                    extracted_strength=item.get("strength"),
+                    extracted_company=item.get("company"),
+                    extracted_quantity=1,
+                    extracted_unit_price=item.get("price", 0) or 0,
+                )
+
+            # Update job status to completed
+            job.status = "ocr_done"
+            job.error_message = None
+            job.save(update_fields=["status", "error_message", "updated_at"])
 
         return Response({"detail": "Result received"}, status=200)
 
