@@ -48,11 +48,11 @@ INSTALLED_APPS = [
     "users",
     "rbac",
     "files",
-    # "ai_integration",
-    # "inventory",
-    # "sales",
-    # "purchases",
-    # "notifications",
+    "ai_integration",
+    "inventory",
+    "sales",
+    "purchases",
+    "notifications",
 ]
 
 MIDDLEWARE = [
@@ -96,8 +96,8 @@ if USE_POSTGRES:
             'ENGINE': 'django.db.backends.postgresql',
             'NAME': os.getenv("DB_NAME", "pharmacio"),
             'USER': os.getenv("DB_USER", "pharmacio"),
-            'PASSWORD': os.getenv("DB_PASSWORD", "change-me"),
-            'HOST': os.getenv("DB_HOST", "localhost"),
+            'PASSWORD': os.getenv("DB_PASSWORD"),
+            'HOST': os.getenv("DB_HOST", "db"),
             'PORT': os.getenv("DB_PORT", "5432"),
         }
     }
@@ -183,12 +183,13 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 load_dotenv(BASE_DIR / ".env") 
 
 USE_S3 = os.getenv('USE_S3', 'False').lower() == 'true'
+FILE_STORAGE_BACKEND = os.getenv('FILE_STORAGE_BACKEND', 's3' if USE_S3 else 'local').lower()
 
 if USE_S3:
-    AWS_ACCESS_KEY_ID = os.getenv('S3_KEY_ID')
-    AWS_SECRET_ACCESS_KEY = os.getenv('S3_SECRET_ACCESS_KEY')
-    AWS_STORAGE_BUCKET_NAME = os.getenv('S3_BUCKET_NAME')
-    AWS_S3_ENDPOINT_URL = os.getenv('S3_HOST')
+    AWS_ACCESS_KEY_ID = os.getenv('AWS_ACCESS_KEY_ID')
+    AWS_SECRET_ACCESS_KEY = os.getenv('AWS_SECRET_ACCESS_KEY')
+    AWS_STORAGE_BUCKET_NAME = os.getenv('AWS_STORAGE_BUCKET_NAME')
+    AWS_S3_ENDPOINT_URL = os.getenv('AWS_S3_ENDPOINT_URL')
     AWS_S3_REGION = os.getenv('AWS_S3_REGION', 'us-east-1')
     AWS_S3_REGION_NAME = 'us-east-1'
     AWS_S3_SIGNATURE_VERSION = 's3v4'
@@ -203,3 +204,20 @@ else:
     DEFAULT_FILE_STORAGE = 'django.core.files.storage.FileSystemStorage'
     MEDIA_URL = '/media/'
     MEDIA_ROOT = BASE_DIR / 'media'
+
+# Celery configuration
+CELERY_BROKER_URL = os.getenv("CELERY_BROKER_URL")
+CELERY_RESULT_BACKEND = os.getenv("CELERY_RESULT_BACKEND")
+
+CELERY_ACCEPT_CONTENT = ["json"]
+CELERY_TASK_SERIALIZER = "json"
+CELERY_RESULT_SERIALIZER = "json"
+
+CELERY_TIMEZONE = "Europe/Berlin"
+
+# OCR Engine configuration
+OCR_ENGINE_PROCESS_URL = os.getenv("OCR_ENGINE_PROCESS_URL")
+AI_ENGINE_API_KEY = os.getenv("AI_ENGINE_API_KEY", "")
+INTERNAL_SERVICE_TOKEN = os.getenv("INTERNAL_SERVICE_TOKEN", "")
+
+OCR_ENGINE_TIMEOUT_SECONDS = int(os.getenv("OCR_ENGINE_TIMEOUT_SECONDS", "30"))
