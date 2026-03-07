@@ -1,7 +1,9 @@
+import uuid
 from django.db import models
 
 
 class File(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
 
     s3_key = models.CharField(max_length=255, unique=True)
     original_filename = models.CharField(max_length=255)
@@ -11,11 +13,10 @@ class File(models.Model):
 
     def __str__(self):
         return self.original_filename
-    
+
     class Meta:
         indexes = [
             models.Index(fields=['s3_key']),
             models.Index(fields=['status']),
             models.Index(fields=['created_at']),
         ]
-

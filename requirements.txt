@@ -10,3 +10,5 @@ djangorestframework-simplejwt==5.5.1
 celery==5.3.0
 redis==4.5.1
 requests>=2.31
+boto3
+django-storages

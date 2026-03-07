@@ -1,133 +1,105 @@
 from django.core.management.base import BaseCommand
 from django.contrib.auth import get_user_model
-from rbac.services.audit import create_audit_log
-from rbac.models import Role, Permission, UserRole
+from rbac.models import Role, Permission
+from rbac import constants
 
 User = get_user_model()
 
 
 class Command(BaseCommand):
-    help = "Seed simple roles: Admin and Pharmacist only"
+    help = "Seed roles and permissions from constants file"
+
+    def add_arguments(self, parser):
+        parser.add_argument(
+            '--admin-password',
+            type=str,
+            default='admin123',
+            help='Password for admin user'
+        )
+        parser.add_argument(
+            '--admin-email',
+            type=str,
+            default='admin@example.com',
+            help='Email for admin user'
+        )
 
     def handle(self, *args, **options):
+        admin_password = options['admin_password']
+        admin_email = options['admin_email']
 
+        self.stdout.write(self.style.NOTICE(" Starting RBAC seeding..."))
 
-        perm, created = Permission.objects.get_or_create(
-            code='create_admin',
-            defaults={
-                'action': 'create',
-            }
-        )
-        if created:
-            self.stdout.write(f"  Created permission: {perm.code}")
-        else:
-            self.stdout.write(f"  Permission already exists: {perm.code}")
+        self.stdout.write("\n Creating permissions...")
 
-        self.stdout.write("\nCreating roles...")
+        permission_codes = [
+            value for key, value in vars(constants).items()
+            if not key.startswith('__') and isinstance(value, str)
+        ]
 
-        admin_role, created = Role.objects.get_or_create(
+        permissions = {}
+        for code in permission_codes:
+            perm, created = Permission.objects.get_or_create(
+                code=code,
+                defaults={'action': code.split('_')[0]}
+            )
+            permissions[code] = perm
+            status = "Created" if created else "Already exists"
+            self.stdout.write(f"  {status}: {code}")
+
+        self.stdout.write("\n Creating roles...")
+
+        admin_role, _ = Role.objects.get_or_create(
             name='admin',
             defaults={
-                'description': 'System administrator',
+                'description': 'System administrator with full access',
                 'is_system': True
             }
         )
-        if created:
-            self.stdout.write("   Created Admin role")
-            admin_role.permissions.add(perm)
-            self.stdout.write(
-                f"     Added {perm.code} permission to Admin role")
-            
-            # Log role creation in audit log
-            create_audit_log(
-                actor=None,
-                action="create_role",
-                entity=admin_role,
-                metadata={"source": "seed_rbac"},
-    )
-        else:
-            self.stdout.write("   Admin role already exists")
-            if perm not in admin_role.permissions.all():
-                admin_role.permissions.add(perm)
-                self.stdout.write(
-                    f"     Added missing {perm.code} permission to Admin role")
+        admin_role.permissions.set(permissions.values())
+        self.stdout.write(" Admin role configured with all permissions")
 
-        pharmacist_role, created = Role.objects.get_or_create(
+        pharmacist_role, _ = Role.objects.get_or_create(
             name='pharmacist',
             defaults={
-                'description': 'Regular pharmacist',
+                'description': 'Regular pharmacist with limited access',
                 'is_system': True
             }
         )
+
+        pharmacist_permissions = [
+            constants.UPLOAD_OFFER_FILES,
+        ]
+
+        pharmacist_role.permissions.set(
+            [permissions[code]
+                for code in pharmacist_permissions if code in permissions]
+        )
+        self.stdout.write(
+            " Pharmacist role configured with limited permissions")
+
+        self.stdout.write("\n Creating admin user...")
+
+        admin_user, created = User.objects.get_or_create(
+            username='admin',
+            defaults={
+                'email': admin_email,
+                'first_name': 'Admin',
+                'last_name': 'User',
+                'is_staff': True,
+                'is_superuser': True
+            }
+        )
+
         if created:
-            self.stdout.write("   Created Pharmacist role (no permissions)")
-            
-            # Log role creation in audit log
-            create_audit_log(
-                actor=None,
-                action="create_role",
-                entity=pharmacist_role,
-                metadata={"source": "seed_rbac"},)
-
-        else:
-            self.stdout.write("   Pharmacist role already exists")
-
-        self.stdout.write("\nCreating default admin user...")
-
-        default_username = 'admin'
-        default_email = 'admin@example.com'
-        default_password = 'admin123'
-
-        admin_user = User.objects.filter(username=default_username).first()
-
-        if not admin_user:
-            admin_user = User.objects.create_user(
-                username=default_username,
-                email=default_email,
-                password=default_password,
-                first_name='Admin',
-                last_name='User',
-                is_staff=True,
-                is_superuser=True
-            )
+            admin_user.set_password(admin_password)
+            admin_user.save()
             self.stdout.write(self.style.SUCCESS(
-                f"   Created default admin user: {default_username} / {default_password}"))
-            
-            # Log admin_user creation in audit log
-            admin_user.roles.add(admin_user)
-            create_audit_log(
-                actor=None,
-                action="created_admin_user",
-                entity=admin_user,
-                metadata={"admin_user_name": admin_user.name, "source": "seed_rbac"},
-            )
-
-
-
+                f" Created admin user: admin / {admin_password}"))
         else:
-            self.stdout.write(
-                f"   Admin user already exists: {default_username}")
+            self.stdout.write(f"Admin user already exists: admin")
 
-        if not UserRole.objects.filter(user=admin_user, role=admin_role).exists():
-            UserRole.objects.create(
-                user=admin_user,
-                role=admin_role,
-                assigned_by=admin_user
-            )
-            self.stdout.write(
-                f"   Assigned Admin role to {admin_user.username}")
-        
-            admin_user.roles.add(admin_role)
-            create_audit_log(
-                actor=None,
-                action="assign_role",
-                entity=admin_user,
-                metadata={"role": admin_role.name, "source": "seed_rbac"},
-                )
-
-        else:
-            self.stdout.write(
-                f"   {admin_user.username} already has Admin role")
+        admin_user.roles.add(admin_role)
+        self.stdout.write(f" Added Admin role to {admin_user.username}")
 
         self.stdout.write(self.style.SUCCESS(
-            "\n Seeding completed successfully!"))
+            "Seeding completed successfully!"))

@@ -40,5 +40,6 @@ urlpatterns = [
     path("health/db/", health_db),
     path('api/v1/', include('users.urls')),
     path('api/v1/rbac/', include('rbac.urls')),
+    path('api/v1/', include('files.urls')),
     path("ai/ocr/result/", OCRResultCallbackView.as_view(), name="ai-ocr-result"),
 ]
