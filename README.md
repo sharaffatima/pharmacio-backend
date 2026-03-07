@@ -143,3 +143,29 @@ docker compose exec <service> python manage.py createsuperuser
 - If DB connection fails, start only the DB: `docker compose up -d postgres` or ensure local Postgres is running.
 - If unsure which service name to use for `docker compose exec`, run `docker compose ps` to check service names.
 - Prefer WSL2 on Windows for best compatibility with Docker and development tools.
+
+## File Storage Backend
+
+The file intake flow now uses a storage adapter interface in `files/storage.py`.
+Business logic in `files/views.py` and `files/serializers.py` depends on this interface instead of talking directly to S3.
+
+### Backends
+
+- `local`: saves files to Django media storage (filesystem)
+- `s3`: uploads files to S3-compatible object storage
+
+### Config switch point
+
+Set `FILE_STORAGE_BACKEND` in `.env`:
+
+```bash
+FILE_STORAGE_BACKEND=local
+```
+
+or:
+
+```bash
+FILE_STORAGE_BACKEND=s3
+```
+
+If `FILE_STORAGE_BACKEND` is not set, the app falls back to legacy behavior via `USE_S3` (`s3` when true, otherwise `local`).

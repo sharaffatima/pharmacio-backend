@@ -183,6 +183,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 load_dotenv(BASE_DIR / ".env") 
 
 USE_S3 = os.getenv('USE_S3', 'False').lower() == 'true'
+FILE_STORAGE_BACKEND = os.getenv('FILE_STORAGE_BACKEND', 's3' if USE_S3 else 'local').lower()
 
 if USE_S3:
     AWS_ACCESS_KEY_ID = os.getenv('AWS_ACCESS_KEY_ID')

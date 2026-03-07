@@ -1,8 +1,6 @@
 from django.shortcuts import get_object_or_404
 import os
-import boto3
 import uuid
-from django.conf import settings
 from rest_framework import status
 from rest_framework.views import APIView
 from rest_framework.response import Response
@@ -11,7 +9,7 @@ from rest_framework.permissions import IsAuthenticated
 from .models import File
 from .serializers import UploadStatusSerializer
 from rbac.permissions import user_has_permission
-from botocore.config import Config
+from .storage import get_storage_adapter
 
 
 class FileUploadView(APIView):
@@ -43,28 +41,14 @@ class FileUploadView(APIView):
             )
 
         unique_id = uuid.uuid4()
-        s3_key = f"uploads/{request.user.id}/{unique_id}{ext}"
+        storage_key = f"uploads/{request.user.id}/{unique_id}{ext}"
 
         try:
-            s3_client = boto3.client(
-                "s3",
-                aws_access_key_id=settings.AWS_ACCESS_KEY_ID,
-                aws_secret_access_key=settings.AWS_SECRET_ACCESS_KEY,
-                endpoint_url=settings.AWS_S3_ENDPOINT_URL,
-                region_name=settings.AWS_S3_REGION_NAME,
-                config=Config(signature_version="s3v4"),
-                use_ssl=False,
-                verify=False
-            )
-
-            s3_client.upload_fileobj(
-                file_obj,
-                settings.AWS_STORAGE_BUCKET_NAME,
-                s3_key
-            )
+            storage = get_storage_adapter()
+            storage.upload_fileobj(file_obj, storage_key)
 
             file_record = File.objects.create(
-                s3_key=s3_key,
+                s3_key=storage_key,
                 original_filename=file_obj.name,
                 ware_house_name=request.data.get("ware_house_name"),
                 status="uploaded"

@@ -41,6 +41,7 @@ class FileUploadViewTests(TestCase):
         self.client.force_authenticate(user=self.user)
 
     @override_settings(
+        FILE_STORAGE_BACKEND='s3',
         AWS_ACCESS_KEY_ID='test-key',
         AWS_SECRET_ACCESS_KEY='test-secret',
         AWS_S3_ENDPOINT_URL='http://localhost:4566',
@@ -55,7 +56,7 @@ class FileUploadViewTests(TestCase):
             content_type="application/pdf"
         )
         
-        with patch('files.views.boto3.client') as mock_s3:
+        with patch('files.storage.boto3.client') as mock_s3:
             mock_s3_client = MagicMock()
             mock_s3.return_value = mock_s3_client
             # Mock the upload_fileobj to return None (success)
@@ -84,6 +85,7 @@ class FileUploadViewTests(TestCase):
         mock_s3_client.upload_fileobj.assert_called_once()
 
     @override_settings(
+        FILE_STORAGE_BACKEND='s3',
         AWS_ACCESS_KEY_ID='test-key',
         AWS_SECRET_ACCESS_KEY='test-secret',
         AWS_S3_ENDPOINT_URL='http://localhost:4566',
@@ -98,7 +100,7 @@ class FileUploadViewTests(TestCase):
             content_type="image/jpeg"
         )
         
-        with patch('files.views.boto3.client') as mock_s3:
+        with patch('files.storage.boto3.client') as mock_s3:
             mock_s3_client = MagicMock()
             mock_s3.return_value = mock_s3_client
             
@@ -185,6 +187,7 @@ class FileUploadViewTests(TestCase):
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
 
     @override_settings(
+        FILE_STORAGE_BACKEND='s3',
         AWS_ACCESS_KEY_ID='test-key',
         AWS_SECRET_ACCESS_KEY='test-secret',
         AWS_S3_ENDPOINT_URL='http://localhost:4566',
@@ -199,7 +202,7 @@ class FileUploadViewTests(TestCase):
             content_type="application/pdf"
         )
         
-        with patch('files.views.boto3.client') as mock_s3:
+        with patch('files.storage.boto3.client') as mock_s3:
             mock_s3_client = MagicMock()
             mock_s3_client.upload_fileobj.side_effect = Exception("S3 connection failed")
             mock_s3.return_value = mock_s3_client

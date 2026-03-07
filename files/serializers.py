@@ -1,6 +1,6 @@
 from rest_framework import serializers
-from django.conf import settings
 from .models import File
+from .storage import get_storage_adapter
 
 
 class UploadStatusSerializer(serializers.ModelSerializer):
@@ -17,10 +17,8 @@ class UploadStatusSerializer(serializers.ModelSerializer):
         return str(obj.id)
 
     def get_file_url(self, obj):
-        if hasattr(settings, 'AWS_S3_ENDPOINT_URL') and settings.AWS_S3_ENDPOINT_URL:
-            endpoint = settings.AWS_S3_ENDPOINT_URL.rstrip('/')
-            return f"{endpoint}/{settings.AWS_STORAGE_BUCKET_NAME}/{obj.s3_key}"
-        return None
+        storage = get_storage_adapter()
+        return storage.get_public_url(obj.s3_key)
 
     def get_message(self, obj):
         messages = {
