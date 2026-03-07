@@ -133,6 +133,17 @@ class AuditLog(models.Model):
         ("revoke_role", "Revoke Role"),
         ("create_permission", "Create Permission"),
         ("delete_permission", "Delete Permission"),
+        
+        # User actions
+        ("user_registered", "User Registered"),
+        ("admin_created", "Admin Created"),
+        ("password_changed", "Password Changed"),
+        
+        # File actions
+        ("file_uploaded", "File Uploaded"),
+        
+        # OCR actions
+        ("ocr_manual_dispatch", "OCR Manual Dispatch"),
     )
 
     actor = models.ForeignKey(
