@@ -19,8 +19,6 @@ from django.urls import path,include
 from django.http import JsonResponse
 from django.db import connection
 
-from ai_integration.views import OCRResultCallbackView
-
 def health(request):
     return JsonResponse({"status": "ok"})
 
@@ -42,5 +40,4 @@ urlpatterns = [
     path('api/v1/rbac/', include('rbac.urls')),
     path('api/v1/', include('files.urls')),
     path('api/v1/', include('ai_integration.urls')),
-    path("ai/ocr/result/", OCRResultCallbackView.as_view(), name="ai-ocr-result"),
 ]

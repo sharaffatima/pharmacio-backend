@@ -78,14 +78,26 @@ pharmacio-backend/
 
 ## Getting Started
 
-Quick, 3-step setup for new developers (Docker recommended):
+Choose one setup path:
+
+- Docker (recommended): fastest way to run the full stack
+- Local (advanced): run backend and dependencies directly on your machine
 
 ### Prerequisites
 
-- Docker & Docker Compose
-- Python 3.10+ (for local venv workflows)
-- Git
-- (Optional) WSL2 on Windows for best Docker/CLI experience
+- Required for all workflows:
+  - Git
+- Required for Docker workflow:
+  - Docker Desktop
+  - Docker Compose v2 (`docker compose`)
+- Required for local workflow:
+  - Python 3.10+
+  - PostgreSQL 14+ (reachable via `DATABASE_URL`)
+  - Redis 6+ (Celery broker/result backend)
+- Optional but recommended:
+  - GNU Make (`make`) for command shortcuts
+  - WSL2 on Windows for better Docker and shell compatibility
+  - `pipenv` or `venv` for Python environment management
 
 ### 1) Clone the repo
 
@@ -96,7 +108,7 @@ cd pharmacio-backend
 
 ### 2) Environment
 
-Copy the example env file and adjust if needed:
+Create your environment file from the template:
 
 Windows:
 
@@ -110,22 +122,38 @@ Or (cross-platform):
 cp .env.example .env
 ```
 
-At minimum set `DATABASE_URL` and `SECRET_KEY` when running outside Docker.
+Set values required by your workflow (at minimum `SECRET_KEY`, and for local workflow `DATABASE_URL`, Redis/Celery settings, and storage-related settings if used).
 
-### 3) Run (Docker)
+### 3A) Run with Docker (recommended)
 
 ```bash
 docker compose up --build -d
 ```
 
-- The stack includes the Django backend, PostgreSQL and Redis by default.
+- The stack includes `backend`, `db`, `redis`, `celery`, and `minio` services.
 - Default backend URL: `http://localhost:8000` (health: `/health/`).
 
-Run migrations and create an admin user (replace `<service>` with `backend` or `web` depending on your compose file):
+Apply migrations and create an admin user:
 
 ```bash
-docker compose exec <service> python manage.py migrate
-docker compose exec <service> python manage.py createsuperuser
+docker compose exec backend python manage.py migrate
+docker compose exec backend python manage.py createsuperuser
+```
+
+### 3B) Run locally (non-Docker)
+
+Create and activate a Python environment, install dependencies, then run migrations and server:
+
+```bash
+pip install -r requirements.txt
+python manage.py migrate
+python manage.py runserver
+```
+
+If you run Celery locally, ensure Redis is running and start a worker:
+
+```bash
+celery -A config worker -l info
 ```
 
 ### Quick Commands with Makefile
@@ -146,7 +174,7 @@ make logs                  # Follow container logs
 make clean                 # Remove __pycache__ and .pyc files
 ```
 
-**Requirements for Makefile:**
+Make requirements:
 
 - **Linux/macOS**: `make` pre-installed
 - **Windows**: Install via [Chocolatey](https://chocolatey.org/) (`choco install make`), [Scoop](https://scoop.sh/) (`scoop install make`), or use WSL2
@@ -164,7 +192,7 @@ make clean                 # Remove __pycache__ and .pyc files
 
 ### Troubleshooting & tips
 
-- If DB connection fails, start only the DB: `docker compose up -d postgres` or ensure local Postgres is running.
+- If DB connection fails in Docker mode, start only the DB: `docker compose up -d db`.
 - If unsure which service name to use for `docker compose exec`, run `docker compose ps` to check service names.
 - Prefer WSL2 on Windows for best compatibility with Docker and development tools.
 

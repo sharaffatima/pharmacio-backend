@@ -43,6 +43,7 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'rest_framework',
     "rest_framework_simplejwt",
+    "rest_framework_simplejwt.token_blacklist",
 
     # Local apps
     "users",
@@ -179,9 +180,6 @@ AUTH_USER_MODEL = 'users.User'
 
 
 # storage
-BASE_DIR = Path(__file__).resolve().parent.parent
-load_dotenv(BASE_DIR / ".env") 
-
 USE_S3 = os.getenv('USE_S3', 'False').lower() == 'true'
 FILE_STORAGE_BACKEND = os.getenv('FILE_STORAGE_BACKEND', 's3' if USE_S3 else 'local').lower()
 
@@ -190,8 +188,7 @@ if USE_S3:
     AWS_SECRET_ACCESS_KEY = os.getenv('AWS_SECRET_ACCESS_KEY')
     AWS_STORAGE_BUCKET_NAME = os.getenv('AWS_STORAGE_BUCKET_NAME')
     AWS_S3_ENDPOINT_URL = os.getenv('AWS_S3_ENDPOINT_URL')
-    AWS_S3_REGION = os.getenv('AWS_S3_REGION', 'us-east-1')
-    AWS_S3_REGION_NAME = 'us-east-1'
+    AWS_S3_REGION_NAME = os.getenv('AWS_S3_REGION_NAME', 'us-east-1')
     AWS_S3_SIGNATURE_VERSION = 's3v4'
     AWS_S3_FILE_OVERWRITE = False
     AWS_DEFAULT_ACL = None
