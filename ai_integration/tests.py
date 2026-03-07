@@ -14,25 +14,20 @@ from users.models import User
 
 
 def _valid_payload():
+    """Valid OCR payload with only required fields: drug_name, company, price, confidence, review_required."""
     return {
-        "schema_version": "1.0",
-        "created_at": "2026-03-01T12:00:00Z",
         "items": [
             {
                 "drug_name": "Paracetamol",
                 "company": "ExamplePharma",
-                "strength": "500mg",
-                "price": 2.99,
-                "availability": "in_stock",
+                "price": "2.99",
                 "confidence": 0.93,
                 "review_required": False,
             },
             {
                 "drug_name": "Ibuprofen",
                 "company": "ExamplePharma",
-                "strength": "400mg",
-                "price": 3.49,
-                "availability": "in_stock",
+                "price": "3.49",
                 "confidence": 0.80,
                 "review_required": True,
             },
@@ -138,21 +133,21 @@ class OCRResultCallbackTests(TestCase):
         self.assertEqual(self.job.status, "ocr_done")
         self.assertIsNone(self.job.error_message)
 
-        # OCRResults created
+        # OCRResults created with correct aggregated data
         result = OCRResults.objects.filter(file=self.file).order_by("-created_at").first()
         self.assertIsNotNone(result)
         self.assertEqual(result.status, "completed")
         self.assertEqual(result.ware_house_name, "Warehouse A")
+        self.assertAlmostEqual(result.confidence_score, 0.865)  # avg of 0.93 and 0.80
+        self.assertTrue(result.review_required)  # True because second item has review_required=True
 
-        # Items created
+        # Items created with correct extracted data
         items = OCRResultItem.objects.filter(ocr_result=result)
         self.assertEqual(items.count(), 2)
 
         first = items.order_by("id").first()
         self.assertEqual(first.extracted_product_name, "Paracetamol")
-        self.assertEqual(first.extracted_strength, "500mg")
         self.assertEqual(first.extracted_company, "ExamplePharma")
-        self.assertEqual(first.extracted_quantity, 1)
         self.assertEqual(first.extracted_unit_price, Decimal("2.99"))
 
 
@@ -475,37 +470,10 @@ class OCRResultSerializerValidationTests(TestCase):
         )
         self.job = OCRJob.objects.create(file=self.file, status="processing")
 
-    def test_missing_schema_version_fails(self):
-        """Test that missing schema_version fails validation"""
-        url = reverse("ai-ocr-result")
-        payload = {
-            "created_at": "2026-03-01T12:00:00Z",
-            "items": [],
-        }
-        body = {"job_id": str(self.job.job_id), "payload": payload}
-
-        resp = self.client.post(url, data=body, format="json")
-        self.assertEqual(resp.status_code, 422)
-
-    def test_missing_created_at_fails(self):
-        """Test that missing created_at fails validation"""
-        url = reverse("ai-ocr-result")
-        payload = {
-            "schema_version": "1.0",
-            "items": [],
-        }
-        body = {"job_id": str(self.job.job_id), "payload": payload}
-
-        resp = self.client.post(url, data=body, format="json")
-        self.assertEqual(resp.status_code, 422)
-
     def test_missing_items_fails(self):
         """Test that missing items fails validation"""
         url = reverse("ai-ocr-result")
-        payload = {
-            "schema_version": "1.0",
-            "created_at": "2026-03-01T12:00:00Z",
-        }
+        payload = {}
         body = {"job_id": str(self.job.job_id), "payload": payload}
 
         resp = self.client.post(url, data=body, format="json")
@@ -514,31 +482,78 @@ class OCRResultSerializerValidationTests(TestCase):
     def test_items_not_list_fails(self):
         """Test that non-list items fails validation"""
         url = reverse("ai-ocr-result")
+        payload = {"items": {"drug_name": "Test"}}  # Should be list
+        body = {"job_id": str(self.job.job_id), "payload": payload}
+
+        resp = self.client.post(url, data=body, format="json")
+        self.assertEqual(resp.status_code, 422)
+
+    def test_missing_item_drug_name_fails(self):
+        """Test that missing drug_name fails validation"""
+        url = reverse("ai-ocr-result")
         payload = {
-            "schema_version": "1.0",
-            "created_at": "2026-03-01T12:00:00Z",
-            "items": {"drug_name": "Test"},  # Should be list
+            "items": [
+                {
+                    "company": "ExamplePharma",
+                    "price": "2.99",
+                    "confidence": 0.93,
+                    "review_required": False,
+                },
+            ],
         }
         body = {"job_id": str(self.job.job_id), "payload": payload}
 
         resp = self.client.post(url, data=body, format="json")
         self.assertEqual(resp.status_code, 422)
 
-    def test_missing_item_field_fails(self):
-        """Test that missing item field fails validation"""
+    def test_missing_item_price_fails(self):
+        """Test that missing price fails validation"""
         url = reverse("ai-ocr-result")
         payload = {
-            "schema_version": "1.0",
-            "created_at": "2026-03-01T12:00:00Z",
             "items": [
                 {
                     "drug_name": "Paracetamol",
                     "company": "ExamplePharma",
-                    "strength": "500mg",
-                    "price": 2.99,
-                    "availability": "in_stock",
                     "confidence": 0.93,
-                    # Missing review_required
+                    "review_required": False,
+                },
+            ],
+        }
+        body = {"job_id": str(self.job.job_id), "payload": payload}
+
+        resp = self.client.post(url, data=body, format="json")
+        self.assertEqual(resp.status_code, 422)
+
+    def test_confidence_out_of_range_fails(self):
+        """Test that confidence outside [0.0, 1.0] fails validation"""
+        url = reverse("ai-ocr-result")
+        payload = {
+            "items": [
+                {
+                    "drug_name": "Paracetamol",
+                    "company": "ExamplePharma",
+                    "price": "2.99",
+                    "confidence": 1.5,  # Out of range
+                    "review_required": False,
+                },
+            ],
+        }
+        body = {"job_id": str(self.job.job_id), "payload": payload}
+
+        resp = self.client.post(url, data=body, format="json")
+        self.assertEqual(resp.status_code, 422)
+
+    def test_negative_price_fails(self):
+        """Test that negative price fails validation"""
+        url = reverse("ai-ocr-result")
+        payload = {
+            "items": [
+                {
+                    "drug_name": "Paracetamol",
+                    "company": "ExamplePharma",
+                    "price": "-2.99",  # Negative not allowed
+                    "confidence": 0.93,
+                    "review_required": False,
                 },
             ],
         }

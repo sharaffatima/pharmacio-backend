@@ -32,25 +32,23 @@ class OCRResultCallbackView(APIView):
             except OCRJob.DoesNotExist:
                 return Response({"detail": "Unknown job_id"}, status=status.HTTP_400_BAD_REQUEST)
 
-            # Create OCRResults row
+            # Create OCRResults row with aggregated data
             result = OCRResults.objects.create(
                 job=job,
                 file=job.file,
                 ware_house_name=job.file.ware_house_name,
-                confidence_score=_overall_confidence(payload),
-                review_required=_review_required(payload),
+                confidence_score=_calculate_overall_confidence(payload["items"]),
+                review_required=_calculate_review_required(payload["items"]),
                 status="completed",
             )
 
-            # Create items
-            for item in payload.get("items", []):
+            # Create OCRResultItem for each extracted item
+            for item in payload["items"]:
                 OCRResultItem.objects.create(
                     ocr_result=result,
-                    extracted_product_name=item.get("drug_name", ""),
-                    extracted_strength=item.get("strength"),
+                    extracted_product_name=item["drug_name"],
                     extracted_company=item.get("company"),
-                    extracted_quantity=1,
-                    extracted_unit_price=item.get("price", 0) or 0,
+                    extracted_unit_price=item["price"],
                 )
 
             # Update job status to completed
@@ -61,20 +59,19 @@ class OCRResultCallbackView(APIView):
         return Response({"detail": "Result received"}, status=200)
 
 
-def _overall_confidence(payload: dict) -> float:
-    items = payload.get("items") or []
+def _calculate_overall_confidence(items: list) -> float:
+    """Calculate average confidence score from all extracted items."""
     if not items:
         return 0.0
-    vals = [float(i.get("confidence", 0.0) or 0.0) for i in items]
-    # keep within [0,1]
-    avg = sum(vals) / max(len(vals), 1)
+    confidences = [float(item["confidence"]) for item in items]
+    avg = sum(confidences) / len(confidences)
+    # Ensure within [0, 1] range due to DB constraint
     return max(0.0, min(1.0, avg))
 
 
-def _review_required(payload: dict) -> bool:
-    items = payload.get("items") or []
-    # review_required true if any item requests review
-    return any(bool(i.get("review_required")) for i in items)
+def _calculate_review_required(items: list) -> bool:
+    """Return True if any item requires review."""
+    return any(item["review_required"] for item in items)
 
 
 class OCRJobStatusView(APIView):

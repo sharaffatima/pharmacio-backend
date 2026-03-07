@@ -128,6 +128,30 @@ docker compose exec <service> python manage.py migrate
 docker compose exec <service> python manage.py createsuperuser
 ```
 
+### Quick Commands with Makefile
+
+For convenience, a `Makefile` is included with shortcuts for common tasks:
+
+```bash
+make help                  # View all available commands
+make migrate              # Run database migrations
+make makemigrations       # Create new migrations
+make test                 # Run all tests
+make test-ai              # Run OCR integration tests only
+make shell                # Open Django shell
+make createsuperuser      # Create admin user
+make up                    # Start Docker containers
+make down                  # Stop Docker containers
+make logs                  # Follow container logs
+make clean                 # Remove __pycache__ and .pyc files
+```
+
+**Requirements for Makefile:**
+
+- **Linux/macOS**: `make` pre-installed
+- **Windows**: Install via [Chocolatey](https://chocolatey.org/) (`choco install make`), [Scoop](https://scoop.sh/) (`scoop install make`), or use WSL2
+- **Alternative**: Run docker commands directly if `make` not available (e.g., `docker compose exec backend python manage.py migrate`)
+
 ### Useful commands
 
 | Command                               | Purpose                    |

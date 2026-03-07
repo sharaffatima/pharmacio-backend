@@ -58,9 +58,7 @@ class OCRResults(models.Model):
 class OCRResultItem(models.Model):
     ocr_result = models.ForeignKey(OCRResults, on_delete=models.CASCADE, related_name='items')
     extracted_product_name = models.CharField(max_length=255)
-    extracted_strength = models.CharField(max_length=100, blank=True, null=True)
     extracted_company = models.CharField(max_length=255, blank=True, null=True)
-    extracted_quantity = models.PositiveIntegerField()
     extracted_unit_price = models.DecimalField(max_digits=10, decimal_places=2)
 
 
