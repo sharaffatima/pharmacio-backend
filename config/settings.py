@@ -48,11 +48,11 @@ INSTALLED_APPS = [
     "users",
     "rbac",
     "files",
-    # "ai_integration",
-    # "inventory",
-    # "sales",
-    # "purchases",
-    # "notifications",
+    "ai_integration",
+    "inventory",
+    "sales",
+    "purchases",
+    "notifications",
 ]
 
 MIDDLEWARE = [
@@ -185,10 +185,10 @@ load_dotenv(BASE_DIR / ".env")
 USE_S3 = os.getenv('USE_S3', 'False').lower() == 'true'
 
 if USE_S3:
-    AWS_ACCESS_KEY_ID = os.getenv('S3_KEY_ID')
-    AWS_SECRET_ACCESS_KEY = os.getenv('S3_SECRET_ACCESS_KEY')
-    AWS_STORAGE_BUCKET_NAME = os.getenv('S3_BUCKET_NAME')
-    AWS_S3_ENDPOINT_URL = os.getenv('S3_HOST')
+    AWS_ACCESS_KEY_ID = os.getenv('AWS_ACCESS_KEY_ID')
+    AWS_SECRET_ACCESS_KEY = os.getenv('AWS_SECRET_ACCESS_KEY')
+    AWS_STORAGE_BUCKET_NAME = os.getenv('AWS_STORAGE_BUCKET_NAME')
+    AWS_S3_ENDPOINT_URL = os.getenv('AWS_S3_ENDPOINT_URL')
     AWS_S3_REGION = os.getenv('AWS_S3_REGION', 'us-east-1')
     AWS_S3_REGION_NAME = 'us-east-1'
     AWS_S3_SIGNATURE_VERSION = 's3v4'
