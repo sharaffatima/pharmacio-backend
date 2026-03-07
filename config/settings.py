@@ -14,7 +14,6 @@ import os
 from pathlib import Path
 from dotenv import load_dotenv
 from datetime import timedelta
-
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 load_dotenv(BASE_DIR / ".env")  # reads local .env (not committed)
@@ -49,11 +48,11 @@ INSTALLED_APPS = [
     "users",
     "rbac",
     "files",
-    "ai_integration",
-    "inventory",
-    "sales",
-    "purchases",
-    "notifications",
+    # "ai_integration",
+    # "inventory",
+    # "sales",
+    # "purchases",
+    # "notifications",
 ]
 
 MIDDLEWARE = [
@@ -177,3 +176,30 @@ SIMPLE_JWT = {
 }
 
 AUTH_USER_MODEL = 'users.User'
+
+
+# storage
+BASE_DIR = Path(__file__).resolve().parent.parent
+load_dotenv(BASE_DIR / ".env") 
+
+USE_S3 = os.getenv('USE_S3', 'False').lower() == 'true'
+
+if USE_S3:
+    AWS_ACCESS_KEY_ID = os.getenv('S3_KEY_ID')
+    AWS_SECRET_ACCESS_KEY = os.getenv('S3_SECRET_ACCESS_KEY')
+    AWS_STORAGE_BUCKET_NAME = os.getenv('S3_BUCKET_NAME')
+    AWS_S3_ENDPOINT_URL = os.getenv('S3_HOST')
+    AWS_S3_REGION = os.getenv('AWS_S3_REGION', 'us-east-1')
+    AWS_S3_REGION_NAME = 'us-east-1'
+    AWS_S3_SIGNATURE_VERSION = 's3v4'
+    AWS_S3_FILE_OVERWRITE = False
+    AWS_DEFAULT_ACL = None
+    AWS_QUERYSTRING_AUTH = False
+
+    MEDIA_URL = f"{AWS_S3_ENDPOINT_URL}/{AWS_STORAGE_BUCKET_NAME}/media/"
+    DEFAULT_FILE_STORAGE = 'storages.backends.s3boto3.S3Boto3Storage'
+
+else:
+    DEFAULT_FILE_STORAGE = 'django.core.files.storage.FileSystemStorage'
+    MEDIA_URL = '/media/'
+    MEDIA_ROOT = BASE_DIR / 'media'
