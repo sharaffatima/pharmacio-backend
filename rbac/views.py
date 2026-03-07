@@ -1,3 +1,4 @@
+import logging
 from rest_framework import generics, status, permissions
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -10,6 +11,9 @@ from .serializers import (
     UserWithRolesSerializer
 )
 from .permissions import IsAdminUser, HasPermission
+from .services.audit import create_audit_log
+
+logger = logging.getLogger(__name__)
 
 
 
@@ -34,6 +38,17 @@ class PermissionListView(generics.ListCreateAPIView):
 
         self.perform_create(serializer)
         headers = self.get_success_headers(serializer.data)
+        
+        # Audit log
+        permission = Permission.objects.get(code=code)
+        create_audit_log(
+            actor=request.user,
+            action="create_permission",
+            entity=permission,
+            metadata={'permission_code': code, 'action': serializer.validated_data.get('action')},
+            request=request
+        )
+        logger.info(f"Permission created by {request.user.username}: {code}")
 
         return Response({
             'message': 'Permission created successfully',
@@ -76,7 +91,22 @@ class RoleDetailView(generics.RetrieveUpdateDestroyAPIView):
     def perform_destroy(self, instance):
         if instance.is_system:
             raise PermissionError("Cannot delete system role")
+        
+        # Capture role name before deletion
+        role_name = instance.name
+        role_id = instance.id
+        
         instance.delete()
+        
+        # Audit log (entity is None since it's deleted)
+        create_audit_log(
+            actor=self.request.user,
+            action="revoke_role",
+            entity=None,
+            metadata={'role_name': role_name, 'role_id': role_id, 'operation': 'delete_role'},
+            request=self.request
+        )
+        logger.info(f"Role deleted by {self.request.user.username}: {role_name}")
 
 
 
@@ -133,15 +163,20 @@ class UserRolesView(APIView):
         serializer.is_valid(raise_exception=True)
 
         role_ids = serializer.validated_data['role_ids']
+        
+        # Capture old roles for audit
+        old_roles = list(user.user_roles.values_list('role__name', flat=True))
 
         UserRole.objects.filter(user=user).delete()
 
+        assigned_roles = []
         for role_id in role_ids:
-            UserRole.objects.get_or_create(
+            user_role, created = UserRole.objects.get_or_create(
                 user=user,
                 role_id=role_id,
                 defaults={'assigned_by': request.user}
             )
+            assigned_roles.append(user_role.role.name)
 
         if role_ids:
             admin_role = Role.objects.filter(name='admin').first()
@@ -150,6 +185,20 @@ class UserRolesView(APIView):
             else:
                 user.role = 'pharmacist'
             user.save()
+        
+        # Audit log
+        create_audit_log(
+            actor=request.user,
+            action="assign_role",
+            entity=user,
+            metadata={
+                'target_user': user.username,
+                'old_roles': old_roles,
+                'new_roles': assigned_roles
+            },
+            request=request
+        )
+        logger.info(f"Roles assigned to {user.username} by {request.user.username}: {assigned_roles}")
 
         return Response({
             'message': 'Roles assigned successfully',
@@ -170,6 +219,19 @@ class UserRemoveRoleView(APIView):
         deleted, _ = UserRole.objects.filter(user=user, role=role).delete()
 
         if deleted:
+            # Audit log
+            create_audit_log(
+                actor=request.user,
+                action="revoke_role",
+                entity=user,
+                metadata={
+                    'target_user': user.username,
+                    'revoked_role': role.name
+                },
+                request=request
+            )
+            logger.info(f"Role {role.name} revoked from {user.username} by {request.user.username}")
+            
             return Response({
                 'message': f'Role {role.name} removed from user {user.username}'
             }, status=status.HTTP_200_OK)

@@ -1,3 +1,4 @@
+import logging
 from django.db import transaction
 from django.utils import timezone
 from django.shortcuts import get_object_or_404
@@ -7,6 +8,9 @@ from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.permissions import BasePermission, IsAuthenticated
 import uuid
+from rbac.services.audit import create_audit_log
+
+logger = logging.getLogger(__name__)
 
 from ai_integration.models import OCRJob, OCRResults, OCRResultItem
 from ai_integration.serializers import OCRResultSerializer
@@ -24,13 +28,16 @@ class InternalServiceAuthentication(BasePermission):
         
         # Allow if token matches and is not empty
         if internal_token and auth_header == internal_token:
+            logger.debug("OCR callback authenticated successfully")
             return True
         
         # For development/testing, allow if token is empty string (not set)
         # Remove this in production
         if not internal_token:
+            logger.warning("OCR callback authentication bypassed - INTERNAL_SERVICE_TOKEN not set")
             return True
-            
+        
+        logger.warning(f"OCR callback authentication failed - invalid token")
         return False
 
 class OCRResultCallbackView(APIView):
@@ -43,8 +50,10 @@ class OCRResultCallbackView(APIView):
     permission_classes = [InternalServiceAuthentication]
     
     def post(self, request):
+        logger.info("Received OCR callback request")
         serializer = OCRResultSerializer(data=request.data)
         if not serializer.is_valid():
+            logger.warning(f"Invalid OCR callback payload: {serializer.errors}")
             return Response(serializer.errors, status=422)
 
         job_uuid = serializer.validated_data["job_id"]
@@ -53,7 +62,9 @@ class OCRResultCallbackView(APIView):
         with transaction.atomic():
             try:
                 job = OCRJob.objects.select_related("file").select_for_update().get(job_id=job_uuid)
+                logger.info(f"Processing OCR results for job {job_uuid}, file={job.file.original_filename}")
             except OCRJob.DoesNotExist:
+                logger.error(f"OCR callback received for unknown job_id: {job_uuid}")
                 return Response({"detail": "Unknown job_id"}, status=status.HTTP_400_BAD_REQUEST)
 
             # Create OCRResults row with aggregated data
@@ -83,6 +94,8 @@ class OCRResultCallbackView(APIView):
             # Sync File status to reflect processing completion
             job.file.status = "completed"
             job.file.save(update_fields=["status"])
+            
+            logger.info(f"Successfully processed OCR results for job {job_uuid}: {len(payload['items'])} items extracted")
 
         return Response({"detail": "Result received"}, status=200)
 
@@ -110,6 +123,7 @@ class OCRJobStatusView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request, job_id):
+        logger.debug(f"Job status request for job_id={job_id} by user={request.user.username}")
         job = get_object_or_404(OCRJob, job_id=job_id)
         
         return Response({
@@ -132,6 +146,7 @@ class ManualDispatchView(APIView):
     permission_classes = [IsAuthenticated]
 
     def post(self, request, job_id):
+        logger.info(f"Manual dispatch triggered for job_id={job_id} by user={request.user.username}")
         job = get_object_or_404(OCRJob, job_id=job_id)
         
         # Reset job status and trigger dispatch
@@ -142,6 +157,20 @@ class ManualDispatchView(APIView):
         
         # Trigger the dispatch task
         dispatch_ocr_job.delay(job.id)
+        logger.info(f"Manual dispatch queued for job {job_id}")
+        
+        # Audit log
+        create_audit_log(
+            actor=request.user,
+            action="ocr_manual_dispatch",
+            entity=job,
+            metadata={
+                'job_id': str(job.job_id),
+                'file': job.file.original_filename,
+                'triggered_by': request.user.username
+            },
+            request=request
+        )
         
         return Response({
             "detail": "Dispatch triggered",
