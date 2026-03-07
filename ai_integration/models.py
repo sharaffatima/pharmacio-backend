@@ -7,6 +7,7 @@ class OCRJob(models.Model):
         ('queued', 'Queued'),
         ('processing', 'Processing'),
         ('dispatched', 'Dispatched'),
+        ('ocr_done', 'OCR Done'),
         ('completed', 'Completed'),
         ('failed', 'Failed'),
     ]

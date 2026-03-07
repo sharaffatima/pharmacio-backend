@@ -41,5 +41,6 @@ urlpatterns = [
     path('api/v1/', include('users.urls')),
     path('api/v1/rbac/', include('rbac.urls')),
     path('api/v1/', include('files.urls')),
+    path('api/v1/', include('ai_integration.urls')),
     path("ai/ocr/result/", OCRResultCallbackView.as_view(), name="ai-ocr-result"),
 ]

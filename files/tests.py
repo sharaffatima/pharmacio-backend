@@ -326,3 +326,124 @@ class UploadStatusViewTests(TestCase):
             
             self.assertEqual(response.status_code, status.HTTP_200_OK)
             self.assertEqual(response.json()['message'], expected_message)
+
+
+class FileUploadCreatesOCRJobTests(TestCase):
+    """Test cases for automatic OCRJob creation on file upload"""
+
+    def setUp(self):
+        """Set up test client and test user"""
+        self.client = APIClient()
+        
+        # Create test user
+        self.user = User.objects.create_user(
+            username='testuser',
+            email='test@test.com',
+            password='testpass123'
+        )
+        
+        # Create permission
+        self.permission = Permission.objects.create(
+            code='upload_offer_files',
+            action='create'
+        )
+        
+        # Create role with permission
+        self.role = Role.objects.create(name='admin')
+        self.role.permissions.add(self.permission)
+        
+        # Assign role to user
+        UserRole.objects.create(user=self.user, role=self.role)
+        
+        # Authenticate client
+        self.client.force_authenticate(user=self.user)
+
+    @override_settings(
+        FILE_STORAGE_BACKEND='local',
+        MEDIA_ROOT='/tmp',
+    )
+    @patch('files.views.dispatch_ocr_job.delay')
+    @patch('files.views.get_storage_adapter')
+    def test_file_upload_creates_ocr_job_and_triggers_dispatch(
+        self, mock_storage, mock_dispatch_task
+    ):
+        """Test that file upload creates OCRJob and triggers dispatch task"""
+        from ai_integration.models import OCRJob
+        
+        # Mock storage
+        mock_storage_instance = MagicMock()
+        mock_storage.return_value = mock_storage_instance
+        
+        file = SimpleUploadedFile(
+            "test_document.pdf",
+            b"PDF content here",
+            content_type="application/pdf"
+        )
+        
+        response = self.client.post(
+            '/api/v1/offers/upload/',
+            {'file': file, 'ware_house_name': 'Warehouse A'},
+            format='multipart'
+        )
+        
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        
+        # Verify File record was created
+        uploaded_file = File.objects.filter(
+            original_filename='test_document.pdf'
+        ).first()
+        self.assertIsNotNone(uploaded_file)
+        
+        # Verify OCRJob was created
+        ocr_job = OCRJob.objects.filter(file=uploaded_file).first()
+        self.assertIsNotNone(ocr_job)
+        self.assertEqual(ocr_job.status, "queued")
+        self.assertEqual(ocr_job.retries, 0)
+        self.assertIsNone(ocr_job.error_message)
+        
+        # Verify dispatch task was triggered
+        mock_dispatch_task.assert_called_once_with(ocr_job.id)
+
+    @override_settings(
+        FILE_STORAGE_BACKEND='local',
+        MEDIA_ROOT='/tmp',
+    )
+    @patch('files.views.dispatch_ocr_job.delay')
+    @patch('files.views.get_storage_adapter')
+    def test_ocr_job_linked_to_correct_file(
+        self, mock_storage, mock_dispatch_task
+    ):
+        """Test that OCRJob is correctly linked to the uploaded file"""
+        from ai_integration.models import OCRJob
+        
+        # Mock storage
+        mock_storage_instance = MagicMock()
+        mock_storage.return_value = mock_storage_instance
+        
+        file = SimpleUploadedFile(
+            "warehouse_inventory.pdf",
+            b"PDF content",
+            content_type="application/pdf"
+        )
+        
+        warehouse_name = "Central Warehouse"
+        response = self.client.post(
+            '/api/v1/offers/upload/',
+            {'file': file, 'ware_house_name': warehouse_name},
+            format='multipart'
+        )
+        
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        
+        # Get the created file
+        uploaded_file = File.objects.get(
+            original_filename='warehouse_inventory.pdf'
+        )
+        
+        # Get the OCRJob
+        ocr_job = OCRJob.objects.get(file=uploaded_file)
+        
+        # Verify the relationship
+        self.assertEqual(ocr_job.file.id, uploaded_file.id)
+        self.assertEqual(ocr_job.file.ware_house_name, warehouse_name)
+        self.assertEqual(ocr_job.file.original_filename, 'warehouse_inventory.pdf')

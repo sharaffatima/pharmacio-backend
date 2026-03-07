@@ -10,6 +10,8 @@ from .models import File
 from .serializers import UploadStatusSerializer
 from rbac.permissions import user_has_permission
 from .storage import get_storage_adapter
+from ai_integration.models import OCRJob
+from ai_integration.tasks import dispatch_ocr_job
 
 
 class FileUploadView(APIView):
@@ -53,6 +55,15 @@ class FileUploadView(APIView):
                 ware_house_name=request.data.get("ware_house_name"),
                 status="uploaded"
             )
+
+            # Create OCRJob for this file
+            ocr_job = OCRJob.objects.create(
+                file=file_record,
+                status="queued"
+            )
+
+            # Trigger async dispatch of OCR job to AI engine
+            dispatch_ocr_job.delay(ocr_job.id)
 
             serializer = UploadStatusSerializer(file_record)
 
