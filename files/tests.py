@@ -41,36 +41,27 @@ class FileUploadViewTests(TestCase):
         self.client.force_authenticate(user=self.user)
 
     @override_settings(
-        FILE_STORAGE_BACKEND='s3',
-        AWS_ACCESS_KEY_ID='test-key',
-        AWS_SECRET_ACCESS_KEY='test-secret',
-        AWS_S3_ENDPOINT_URL='http://localhost:4566',
-        AWS_S3_REGION_NAME='us-east-1',
-        AWS_STORAGE_BUCKET_NAME='test-bucket'
+        FILE_STORAGE_BACKEND='local',
+        MEDIA_ROOT='/tmp',
     )
-    def test_file_upload_success_pdf(self):
+    @patch('files.views.dispatch_ocr_job.delay')
+    @patch('files.views.get_storage_adapter')
+    def test_file_upload_success_pdf(self, mock_storage_adapter, mock_dispatch_task):
         """Test successful PDF file upload"""
+        mock_storage_instance = MagicMock()
+        mock_storage_adapter.return_value = mock_storage_instance
+
         file = SimpleUploadedFile(
             "test_document.pdf",
             b"PDF content here",
             content_type="application/pdf"
         )
-        
-        with patch('files.storage.boto3.client') as mock_s3:
-            mock_s3_client = MagicMock()
-            mock_s3.return_value = mock_s3_client
-            # Mock the upload_fileobj to return None (success)
-            mock_s3_client.upload_fileobj.return_value = None
-            
-            response = self.client.post(
-                '/api/v1/offers/upload/',
-                {'file': file, 'ware_house_name': 'Warehouse A'},
-                format='multipart'
-            )
-        
-        # Debug: print response if it fails
-        if response.status_code != status.HTTP_200_OK:
-            print(f"Response: {response.json()}")
+
+        response = self.client.post(
+            '/api/v1/offers/upload/',
+            {'file': file, 'ware_house_name': 'Warehouse A'},
+            format='multipart'
+        )
         
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertIn('upload_id', response.json())
@@ -80,38 +71,38 @@ class FileUploadViewTests(TestCase):
         
         # Verify File record was created
         self.assertTrue(File.objects.filter(original_filename='test_document.pdf').exists())
-        
-        # Verify S3 upload was called
-        mock_s3_client.upload_fileobj.assert_called_once()
+
+        # Verify storage upload was called
+        mock_storage_instance.upload_fileobj.assert_called_once()
+        mock_dispatch_task.assert_called_once()
 
     @override_settings(
-        FILE_STORAGE_BACKEND='s3',
-        AWS_ACCESS_KEY_ID='test-key',
-        AWS_SECRET_ACCESS_KEY='test-secret',
-        AWS_S3_ENDPOINT_URL='http://localhost:4566',
-        AWS_S3_REGION_NAME='us-east-1',
-        AWS_STORAGE_BUCKET_NAME='test-bucket'
+        FILE_STORAGE_BACKEND='local',
+        MEDIA_ROOT='/tmp',
     )
-    def test_file_upload_success_image(self):
+    @patch('files.views.dispatch_ocr_job.delay')
+    @patch('files.views.get_storage_adapter')
+    def test_file_upload_success_image(self, mock_storage_adapter, mock_dispatch_task):
         """Test successful image file upload (JPG)"""
+        mock_storage_instance = MagicMock()
+        mock_storage_adapter.return_value = mock_storage_instance
+
         file = SimpleUploadedFile(
             "test_image.jpg",
             b"fake image content",
             content_type="image/jpeg"
         )
-        
-        with patch('files.storage.boto3.client') as mock_s3:
-            mock_s3_client = MagicMock()
-            mock_s3.return_value = mock_s3_client
-            
-            response = self.client.post(
-                '/api/v1/offers/upload/',
-                {'file': file, 'ware_house_name': 'Warehouse B'},
-                format='multipart'
-            )
+
+        response = self.client.post(
+            '/api/v1/offers/upload/',
+            {'file': file, 'ware_house_name': 'Warehouse B'},
+            format='multipart'
+        )
         
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.json()['original_filename'], 'test_image.jpg')
+        mock_storage_instance.upload_fileobj.assert_called_once()
+        mock_dispatch_task.assert_called_once()
 
     def test_file_upload_unsupported_extension(self):
         """Test upload with unsupported file type"""
