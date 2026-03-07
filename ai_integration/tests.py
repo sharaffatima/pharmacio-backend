@@ -1,4 +1,3 @@
-from django.test import TestCase
 import uuid
 from decimal import Decimal
 from django.test import TestCase, override_settings
