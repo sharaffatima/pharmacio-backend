@@ -1,23 +1,47 @@
 from django.db import transaction
 from django.utils import timezone
 from django.shortcuts import get_object_or_404
+from django.conf import settings
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
+from rest_framework.permissions import BasePermission, IsAuthenticated
 import uuid
 
 from ai_integration.models import OCRJob, OCRResults, OCRResultItem
 from ai_integration.serializers import OCRResultSerializer
 from ai_integration.tasks import dispatch_ocr_job
-from rest_framework.permissions import AllowAny, IsAuthenticated
+
+
+class InternalServiceAuthentication(BasePermission):
+    """
+    Custom permission to authenticate OCR engine callbacks using shared token.
+    Checks Authorization header against INTERNAL_SERVICE_TOKEN.
+    """
+    def has_permission(self, request, view):
+        auth_header = request.headers.get('Authorization', '')
+        internal_token = getattr(settings, 'INTERNAL_SERVICE_TOKEN', '')
+        
+        # Allow if token matches and is not empty
+        if internal_token and auth_header == internal_token:
+            return True
+        
+        # For development/testing, allow if token is empty string (not set)
+        # Remove this in production
+        if not internal_token:
+            return True
+            
+        return False
 
 class OCRResultCallbackView(APIView):
     """
     Callback endpoint for OCR engine to POST results.
-    POST /ai/ocr/result/
+    POST /api/v1/ocr/result/
     Payload: {job_id: UUID, payload: {...result data...}}
+    Authentication: Requires INTERNAL_SERVICE_TOKEN in Authorization header
     """
-    permission_classes = [AllowAny] # just for testing, should be more restrictive in production
+    permission_classes = [InternalServiceAuthentication]
+    
     def post(self, request):
         serializer = OCRResultSerializer(data=request.data)
         if not serializer.is_valid():
@@ -51,10 +75,14 @@ class OCRResultCallbackView(APIView):
                     extracted_unit_price=item["price"],
                 )
 
-            # Update job status to completed
+            # Update job status to ocr_done
             job.status = "ocr_done"
             job.error_message = None
             job.save(update_fields=["status", "error_message", "updated_at"])
+            
+            # Sync File status to reflect processing completion
+            job.file.status = "completed"
+            job.file.save(update_fields=["status"])
 
         return Response({"detail": "Result received"}, status=200)
 
@@ -77,7 +105,7 @@ def _calculate_review_required(items: list) -> bool:
 class OCRJobStatusView(APIView):
     """
     Endpoint to check the status of an OCR job.
-    GET /ai/ocr/job/{job_id}/
+    GET /api/v1/ocr/job/{job_id}/
     """
     permission_classes = [IsAuthenticated]
 
@@ -99,7 +127,7 @@ class ManualDispatchView(APIView):
     """
     Endpoint to manually trigger OCR dispatch for a job.
     Useful for recovery/retry scenarios.
-    POST /ai/ocr/dispatch/{job_id}/
+    POST /api/v1/ocr/job/{job_id}/dispatch/
     """
     permission_classes = [IsAuthenticated]
 

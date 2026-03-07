@@ -23,6 +23,10 @@ def dispatch_ocr_job(self, ocr_job_id: int):
     job.status = "processing"
     job.error_message = None
     job.save(update_fields=["status", "error_message", "updated_at"])
+    
+    # Sync File status
+    job.file.status = "processing"
+    job.file.save(update_fields=["status"])
 
     # Attempt dispatch to OCR engine and handle errors with retry logic
     try:
@@ -41,6 +45,10 @@ def dispatch_ocr_job(self, ocr_job_id: int):
         if self.request.retries >= self.max_retries:
             job.status = "failed"
             job.save(update_fields=["retries", "status", "error_message", "updated_at"])
+            
+            # Sync File status
+            job.file.status = "failed"
+            job.file.save(update_fields=["status"])
             return
 
         # Otherwise, save current state and retry with exponential backoff

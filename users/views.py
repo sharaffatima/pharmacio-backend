@@ -1,7 +1,6 @@
 from rbac.models import UserRole, Role, Permission
 from rbac.permissions import user_has_permission
 from rbac.models import Role
-from rest_framework.authtoken.models import Token
 from rest_framework.exceptions import PermissionDenied
 from rbac.models import RolePermission, Permission
 from rest_framework import status, generics, permissions

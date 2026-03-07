@@ -8,6 +8,12 @@ django = "*"
 djangorestframework = "*"
 psycopg2-binary = "*"
 python-dotenv = "*"
+djangorestframework-simplejwt = "*"
+celery = "*"
+redis = "*"
+requests = ">=2.31"
+boto3 = "*"
+django-storages = "*"
 
 [dev-packages]
 

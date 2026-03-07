@@ -109,21 +109,21 @@ class OCRResultCallbackTests(TestCase):
 
     def test_callback_unknown_job_returns_400(self):
         from django.urls import reverse
-        url = reverse("ai-ocr-result")
+        url = reverse("ocr-result-callback")
         body = {"job_id": str(uuid.uuid4()), "payload": _valid_payload()}
         resp = self.client.post(url, data=body, format="json")
         self.assertEqual(resp.status_code, 400)
 
     def test_callback_invalid_payload_returns_422(self):
         from django.urls import reverse
-        url = reverse("ai-ocr-result")
+        url = reverse("ocr-result-callback")
         body = {"job_id": str(self.job.job_id), "payload": {"items": []}}  # missing required keys
         resp = self.client.post(url, data=body, format="json")
         self.assertEqual(resp.status_code, 422)
 
     def test_callback_creates_result_items_and_completes_job(self):
         from django.urls import reverse
-        url = reverse("ai-ocr-result")
+        url = reverse("ocr-result-callback")
         body = {"job_id": str(self.job.job_id), "payload": _valid_payload()}
 
         resp = self.client.post(url, data=body, format="json")
@@ -132,6 +132,10 @@ class OCRResultCallbackTests(TestCase):
         self.job.refresh_from_db()
         self.assertEqual(self.job.status, "ocr_done")
         self.assertIsNone(self.job.error_message)
+        
+        # Check File status was also updated
+        self.file.refresh_from_db()
+        self.assertEqual(self.file.status, "completed")
 
         # OCRResults created with correct aggregated data
         result = OCRResults.objects.filter(file=self.file).order_by("-created_at").first()
@@ -472,7 +476,7 @@ class OCRResultSerializerValidationTests(TestCase):
 
     def test_missing_items_fails(self):
         """Test that missing items fails validation"""
-        url = reverse("ai-ocr-result")
+        url = reverse("ocr-result-callback")
         payload = {}
         body = {"job_id": str(self.job.job_id), "payload": payload}
 
@@ -481,7 +485,7 @@ class OCRResultSerializerValidationTests(TestCase):
 
     def test_items_not_list_fails(self):
         """Test that non-list items fails validation"""
-        url = reverse("ai-ocr-result")
+        url = reverse("ocr-result-callback")
         payload = {"items": {"drug_name": "Test"}}  # Should be list
         body = {"job_id": str(self.job.job_id), "payload": payload}
 
@@ -490,7 +494,7 @@ class OCRResultSerializerValidationTests(TestCase):
 
     def test_missing_item_drug_name_fails(self):
         """Test that missing drug_name fails validation"""
-        url = reverse("ai-ocr-result")
+        url = reverse("ocr-result-callback")
         payload = {
             "items": [
                 {
@@ -508,7 +512,7 @@ class OCRResultSerializerValidationTests(TestCase):
 
     def test_missing_item_price_fails(self):
         """Test that missing price fails validation"""
-        url = reverse("ai-ocr-result")
+        url = reverse("ocr-result-callback")
         payload = {
             "items": [
                 {
@@ -526,7 +530,7 @@ class OCRResultSerializerValidationTests(TestCase):
 
     def test_confidence_out_of_range_fails(self):
         """Test that confidence outside [0.0, 1.0] fails validation"""
-        url = reverse("ai-ocr-result")
+        url = reverse("ocr-result-callback")
         payload = {
             "items": [
                 {
@@ -545,7 +549,7 @@ class OCRResultSerializerValidationTests(TestCase):
 
     def test_negative_price_fails(self):
         """Test that negative price fails validation"""
-        url = reverse("ai-ocr-result")
+        url = reverse("ocr-result-callback")
         payload = {
             "items": [
                 {
@@ -564,7 +568,7 @@ class OCRResultSerializerValidationTests(TestCase):
 
     def test_valid_payload_succeeds(self):
         """Test that valid payload succeeds"""
-        url = reverse("ai-ocr-result")
+        url = reverse("ocr-result-callback")
         body = {"job_id": str(self.job.job_id), "payload": _valid_payload()}
 
         resp = self.client.post(url, data=body, format="json")
