@@ -183,7 +183,8 @@ AUTH_USER_MODEL = 'users.User'
 USE_S3 = os.getenv('USE_S3', 'False').lower() == 'true'
 FILE_STORAGE_BACKEND = os.getenv('FILE_STORAGE_BACKEND', 's3' if USE_S3 else 'local').lower()
 
-if USE_S3:
+# Define AWS settings whenever S3 is used (via USE_S3 or FILE_STORAGE_BACKEND)
+if USE_S3 or FILE_STORAGE_BACKEND == 's3':
     AWS_ACCESS_KEY_ID = os.getenv('AWS_ACCESS_KEY_ID')
     AWS_SECRET_ACCESS_KEY = os.getenv('AWS_SECRET_ACCESS_KEY')
     AWS_STORAGE_BUCKET_NAME = os.getenv('AWS_STORAGE_BUCKET_NAME')
@@ -194,7 +195,7 @@ if USE_S3:
     AWS_DEFAULT_ACL = None
     AWS_QUERYSTRING_AUTH = False
 
-    MEDIA_URL = f"{AWS_S3_ENDPOINT_URL}/{AWS_STORAGE_BUCKET_NAME}/media/"
+    MEDIA_URL = f"{AWS_S3_ENDPOINT_URL}/{AWS_STORAGE_BUCKET_NAME}/media/" if AWS_S3_ENDPOINT_URL else '/media/'
     DEFAULT_FILE_STORAGE = 'storages.backends.s3boto3.S3Boto3Storage'
 
 else:

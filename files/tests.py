@@ -178,6 +178,45 @@ class FileUploadViewTests(TestCase):
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
 
     @override_settings(
+        FILE_STORAGE_BACKEND='local',
+        MEDIA_ROOT='/tmp',
+    )
+    @patch('files.views.dispatch_ocr_job.delay')
+    @patch('files.views.get_storage_adapter')
+    def test_file_upload_allows_legacy_admin_role_field(
+        self, mock_storage_adapter, mock_dispatch_task
+    ):
+        """A user with role='admin' should be allowed even without UserRole mapping."""
+        legacy_admin = User.objects.create_user(
+            username='legacyadmin',
+            email='legacyadmin@test.com',
+            password='testpass123',
+            role='admin'
+        )
+
+        client = APIClient()
+        client.force_authenticate(user=legacy_admin)
+
+        mock_storage_instance = MagicMock()
+        mock_storage_adapter.return_value = mock_storage_instance
+
+        file = SimpleUploadedFile(
+            "legacy_admin_upload.pdf",
+            b"PDF content",
+            content_type="application/pdf"
+        )
+
+        response = client.post(
+            '/api/v1/offers/upload/',
+            {'file': file, 'ware_house_name': 'Warehouse A'},
+            format='multipart'
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        mock_storage_instance.upload_fileobj.assert_called_once()
+        mock_dispatch_task.assert_called_once()
+
+    @override_settings(
         FILE_STORAGE_BACKEND='s3',
         AWS_ACCESS_KEY_ID='test-key',
         AWS_SECRET_ACCESS_KEY='test-secret',

@@ -6,7 +6,13 @@ def user_has_permission(user, permission_code):
     if not user or not user.is_authenticated:
         return False
 
-    if UserRole.objects.filter(user=user, role__name='admin').exists():
+    # Keep Django admin users and legacy role-field admins functional.
+    if getattr(user, 'is_superuser', False) or getattr(user, 'is_staff', False):
+        return True
+    if getattr(user, 'role', None) == 'admin':
+        return True
+
+    if UserRole.objects.filter(user=user, role__name__iexact='admin').exists():
         return True
 
     user_roles = UserRole.objects.filter(user=user).select_related(
