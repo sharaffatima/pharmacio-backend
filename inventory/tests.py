@@ -196,7 +196,7 @@ class InventoryAdjustApiTests(TestCase):
 
 
 class InventoryCreateApiTests(TestCase):
-    URL = "/api/v1/inventory"
+    URL = "/api/v1/inventory/"
 
     def _make_user(self, username, email, with_permission=False):
         User = get_user_model()
