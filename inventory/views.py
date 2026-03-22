@@ -17,6 +17,7 @@ from rbac.services.audit import create_audit_log
 
 class InventoryListCreateView(generics.ListCreateAPIView):
     queryset = Inventory.objects.all().order_by("product_name", "id")
+    permission_classes = [IsAuthenticated]
 
     def get_serializer_class(self):
         if self.request.method == "POST":
@@ -31,19 +32,20 @@ class InventoryListCreateView(generics.ListCreateAPIView):
             )
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        item = serializer.save()
-        create_audit_log(
-            actor=request.user,
-            action="inventory_item_created",
-            entity=item,
-            metadata={
-                "product_name": item.product_name,
-                "strength": item.strength,
-                "quantity_on_hand": item.quantity_on_hand,
-                "min_threshold": item.min_threshold,
-            },
-            request=request,
-        )
+        with transaction.atomic():
+            item = serializer.save()
+            create_audit_log(
+                actor=request.user,
+                action="inventory_item_created",
+                entity=item,
+                metadata={
+                    "product_name": item.product_name,
+                    "strength": item.strength,
+                    "quantity_on_hand": item.quantity_on_hand,
+                    "min_threshold": item.min_threshold,
+                },
+                request=request,
+            )
         return Response(
             InventoryListSerializer(item).data,
             status=status.HTTP_201_CREATED,

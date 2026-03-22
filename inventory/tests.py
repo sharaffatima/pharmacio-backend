@@ -17,6 +17,11 @@ class InventoryListApiTests(TestCase):
         )
         self.client.force_authenticate(user=self.user)
 
+    def test_inventory_list_requires_authentication(self):
+        response = APIClient().get("/api/v1/inventory")
+
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+
     def test_inventory_list_returns_paginated_results(self):
         for i in range(21):
             Inventory.objects.create(
@@ -270,6 +275,21 @@ class InventoryCreateApiTests(TestCase):
             self.URL, self._payload(quantity_on_hand=-5), format="json"
         )
         self.assertEqual(resp.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_duplicate_product_and_strength_returns_400(self):
+        Inventory.objects.create(
+            product_name="Aspirin",
+            strength="100mg",
+            quantity_on_hand=20,
+            min_threshold=5,
+        )
+
+        client = APIClient()
+        client.force_authenticate(user=self.permitted_user)
+        resp = client.post(self.URL, self._payload(), format="json")
+
+        self.assertEqual(resp.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(Inventory.objects.filter(product_name="Aspirin", strength="100mg").count(), 1)
 
     def test_create_writes_audit_log(self):
         client = APIClient()

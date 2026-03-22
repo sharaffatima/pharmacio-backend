@@ -6,6 +6,7 @@ from rest_framework import status
 from rest_framework.test import APITestCase
 
 from rbac.models import Role, Permission, UserRole, RolePermission
+from rbac.permissions import user_has_permission
 
 
 class RBACApiTests(APITestCase):
@@ -137,3 +138,9 @@ class RBACApiTests(APITestCase):
 
         self.assertEqual(res.status_code, status.HTTP_200_OK)
         self.assertFalse(res.data["has_permission"])
+
+    def test_is_staff_user_without_role_or_permission_does_not_bypass_checks(self):
+        self.normal_user.is_staff = True
+        self.normal_user.save(update_fields=["is_staff"])
+
+        self.assertFalse(user_has_permission(self.normal_user, "adjust_inventory"))

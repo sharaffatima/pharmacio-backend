@@ -21,6 +21,16 @@ class InventoryCreateSerializer(serializers.ModelSerializer):
         model = Inventory
         fields = ["product_name", "strength", "quantity_on_hand", "min_threshold"]
 
+    def validate(self, attrs):
+        if Inventory.objects.filter(
+            product_name=attrs["product_name"],
+            strength=attrs["strength"],
+        ).exists():
+            raise serializers.ValidationError(
+                "An inventory item with this product name and strength already exists."
+            )
+        return attrs
+
     def validate_quantity_on_hand(self, value):
         if value < 0:
             raise serializers.ValidationError("quantity_on_hand cannot be negative.")
