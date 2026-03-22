@@ -68,7 +68,7 @@ class InventoryListApiTests(TestCase):
 
 
 class InventoryAdjustApiTests(TestCase):
-    URL = "/api/v1/inventory/{pk}/adjust"
+    URL = "/api/v1/inventory/{pk}/adjust/"
 
     def _url(self, pk):
         return self.URL.format(pk=pk)
