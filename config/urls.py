@@ -40,4 +40,5 @@ urlpatterns = [
     path('api/v1/rbac/', include('rbac.urls')),
     path('api/v1/', include('files.urls')),
     path('api/v1/', include('ai_integration.urls')),
+    path('api/v1/', include('inventory.urls')),
 ]
