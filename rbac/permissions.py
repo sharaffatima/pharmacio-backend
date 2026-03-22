@@ -7,7 +7,7 @@ def user_has_permission(user, permission_code):
         return False
 
     # Keep Django admin users and legacy role-field admins functional.
-    if getattr(user, 'is_superuser', False) or getattr(user, 'is_staff', False):
+    if getattr(user, 'is_superuser', False):
         return True
     if getattr(user, 'role', None) == 'admin':
         return True

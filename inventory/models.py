@@ -19,8 +19,16 @@ class Inventory(models.Model):
             models.Index(fields=['updated_at']),
         ]
         constraints = [
-        models.CheckConstraint(
-            condition=models.Q(quantity_on_hand__gte=0),
-            name="quantity_non_negative"
-        )
-    ]
+            models.CheckConstraint(
+                condition=models.Q(quantity_on_hand__gte=0),
+                name="quantity_non_negative"
+            ),
+            models.CheckConstraint(
+                condition=models.Q(min_threshold__gte=0),
+                name="min_threshold_non_negative"
+            ),
+            models.UniqueConstraint(
+                fields=['product_name', 'strength'],
+                name='inventory_product_strength_unique'
+            ),
+        ]

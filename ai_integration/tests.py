@@ -95,6 +95,7 @@ class CeleryDispatchTests(TestCase):
         mock_dispatch.assert_called_once()
 
 
+@override_settings(INTERNAL_SERVICE_TOKEN='')
 class OCRResultCallbackTests(TestCase):
     def setUp(self):
         self.client = APIClient()
@@ -461,6 +462,7 @@ class FileUploadCreatesOCRJobTests(TestCase):
         mock_dispatch_task.assert_called_once_with(job.id)
 
 
+@override_settings(INTERNAL_SERVICE_TOKEN='')
 class OCRResultSerializerValidationTests(TestCase):
     """Tests for OCRResultSerializer validation"""
 
