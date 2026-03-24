@@ -32,7 +32,8 @@ test:
 	docker compose exec backend python manage.py test -v 2
 
 test-ai:
-	docker compose exec backend python manage.py test ai_integration
+	docker compose exec backend python manage.py test ai_integration -v 2
+
 
 # Server
 run:
