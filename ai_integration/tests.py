@@ -575,3 +575,126 @@ class OCRResultSerializerValidationTests(TestCase):
 
         resp = self.client.post(url, data=body, format="json")
         self.assertEqual(resp.status_code, 200)
+
+
+class OfferComparisonServiceTests(TestCase):
+    """Tests for ai_integration.services.comparison.compare_offers."""
+
+    def setUp(self):
+        from ai_integration.services.comparison import compare_offers, make_drug_key
+        self.compare_offers = compare_offers
+        self.make_drug_key = make_drug_key
+
+        self.file1 = File.objects.create(
+            s3_key="offers/cmp_wh1.pdf",
+            original_filename="cmp_wh1.pdf",
+            status="completed",
+            ware_house_name="Warehouse Alpha",
+        )
+        self.file2 = File.objects.create(
+            s3_key="offers/cmp_wh2.pdf",
+            original_filename="cmp_wh2.pdf",
+            status="completed",
+            ware_house_name="Warehouse Beta",
+        )
+        self.offer1 = OCRResults.objects.create(
+            file=self.file1,
+            ware_house_name="Warehouse Alpha",
+            confidence_score=0.9,
+            review_required=False,
+            status="completed",
+        )
+        self.offer2 = OCRResults.objects.create(
+            file=self.file2,
+            ware_house_name="Warehouse Beta",
+            confidence_score=0.85,
+            review_required=False,
+            status="completed",
+        )
+
+    def test_best_price_wins(self):
+        """Lower price across two offers is selected as best."""
+        OCRResultItem.objects.create(
+            ocr_result=self.offer1,
+            extracted_product_name="Paracetamol",
+            extracted_company="PharmaA",
+            extracted_unit_price=Decimal("2.99"),
+        )
+        OCRResultItem.objects.create(
+            ocr_result=self.offer2,
+            extracted_product_name="Paracetamol",
+            extracted_company="PharmaA",
+            extracted_unit_price=Decimal("3.49"),
+        )
+
+        results = self.compare_offers([self.offer1.id, self.offer2.id])
+
+        self.assertEqual(len(results), 1)
+        r = results[0]
+        self.assertEqual(r.status, "found")
+        self.assertEqual(r.best.offer_id, self.offer1.id)
+        self.assertEqual(r.best.price, Decimal("2.99"))
+        self.assertEqual(len(r.alternatives), 1)
+        self.assertEqual(r.alternatives[0].price, Decimal("3.49"))
+
+    def test_equal_price_deterministic_winner(self):
+        """Same price resolves to alphabetically earlier warehouse; result is stable."""
+        OCRResultItem.objects.create(
+            ocr_result=self.offer1,
+            extracted_product_name="Ibuprofen",
+            extracted_company="PharmaB",
+            extracted_unit_price=Decimal("5.00"),
+        )
+        OCRResultItem.objects.create(
+            ocr_result=self.offer2,
+            extracted_product_name="Ibuprofen",
+            extracted_company="PharmaB",
+            extracted_unit_price=Decimal("5.00"),
+        )
+
+        r1 = self.compare_offers([self.offer1.id, self.offer2.id])[0]
+        r2 = self.compare_offers([self.offer1.id, self.offer2.id])[0]
+
+        # "Warehouse Alpha" < "Warehouse Beta"
+        self.assertEqual(r1.best.ware_house_name, "Warehouse Alpha")
+        self.assertEqual(r1.best.offer_id, r2.best.offer_id)
+
+    def test_drug_not_in_any_offer_is_not_found(self):
+        """Requested drug absent from all offers returns status=not_found."""
+        OCRResultItem.objects.create(
+            ocr_result=self.offer1,
+            extracted_product_name="Aspirin",
+            extracted_company="PharmaC",
+            extracted_unit_price=Decimal("1.50"),
+        )
+
+        requested = {self.make_drug_key("Metformin", "PharmaCo")}
+        results = self.compare_offers(
+            [self.offer1.id, self.offer2.id],
+            requested_drug_keys=requested,
+        )
+
+        not_found = [r for r in results if r.status == "not_found"]
+        self.assertEqual(len(not_found), 1)
+        self.assertIsNone(not_found[0].best)
+
+        found = [r for r in results if r.status == "found"]
+        self.assertEqual(len(found), 1)
+        self.assertEqual(found[0].drug_name, "Aspirin")
+
+    def test_drug_in_one_offer_only(self):
+        """Drug present in only one offer: best is that offer, alternatives empty."""
+        OCRResultItem.objects.create(
+            ocr_result=self.offer1,
+            extracted_product_name="Amoxicillin",
+            extracted_company="PharmaD",
+            extracted_unit_price=Decimal("4.20"),
+        )
+
+        results = self.compare_offers([self.offer1.id, self.offer2.id])
+
+        self.assertEqual(len(results), 1)
+        r = results[0]
+        self.assertEqual(r.status, "found")
+        self.assertEqual(r.best.offer_id, self.offer1.id)
+        self.assertEqual(r.alternatives, [])
