@@ -9,6 +9,7 @@ from rest_framework.parsers import MultiPartParser, FormParser
 from rest_framework.permissions import IsAuthenticated
 from .models import File
 from .serializers import UploadStatusSerializer
+from rbac.constants import UPLOAD_OFFER_FILES, VIEW_OFFER_FILES
 from rbac.permissions import user_has_permission
 from .storage import get_storage_adapter
 from ai_integration.models import OCRJob
@@ -25,7 +26,7 @@ class FileUploadView(APIView):
     def post(self, request):
         logger.info(f"File upload request from user={request.user.username}")
 
-        if not user_has_permission(request.user, 'upload_offer_files'):
+        if not user_has_permission(request.user, UPLOAD_OFFER_FILES):
             logger.warning(f"User {request.user.username} attempted file upload without permission")
             return Response(
                 {"detail": "You do not have permission to upload files"},
@@ -110,7 +111,7 @@ class UploadStatusView(APIView):
     def get(self, request, id):
         logger.debug(f"Upload status check for file_id={id} by user={request.user.username}")
 
-        if not user_has_permission(request.user, 'upload_offer_files'):
+        if not user_has_permission(request.user, VIEW_OFFER_FILES):
             logger.warning(f"User {request.user.username} attempted status check without permission")
             return Response(
                 {"detail": "You do not have permission to view upload status"},

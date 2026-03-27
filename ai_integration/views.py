@@ -14,6 +14,7 @@ logger = logging.getLogger(__name__)
 
 from ai_integration.models import OCRJob, OCRResults, OCRResultItem
 from ai_integration.serializers import OCRResultSerializer
+from ai_integration.services.payload_normalization import normalize_ocr_payload_items
 from ai_integration.tasks import dispatch_ocr_job
 
 
@@ -58,6 +59,13 @@ class OCRResultCallbackView(APIView):
 
         job_uuid = serializer.validated_data["job_id"]
         payload = serializer.validated_data["payload"]
+        normalized_items = normalize_ocr_payload_items(payload)
+        if not normalized_items:
+            logger.warning(f"No parsable OCR items found for job_id={job_uuid}")
+            return Response(
+                {"detail": "OCR payload did not contain any parsable items."},
+                status=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            )
 
         with transaction.atomic():
             try:
@@ -72,13 +80,13 @@ class OCRResultCallbackView(APIView):
                 job=job,
                 file=job.file,
                 ware_house_name=job.file.ware_house_name,
-                confidence_score=_calculate_overall_confidence(payload["items"]),
-                review_required=_calculate_review_required(payload["items"]),
+                confidence_score=_calculate_overall_confidence(normalized_items),
+                review_required=_calculate_review_required(normalized_items),
                 status="completed",
             )
 
             # Create OCRResultItem for each extracted item
-            for item in payload["items"]:
+            for item in normalized_items:
                 OCRResultItem.objects.create(
                     ocr_result=result,
                     extracted_product_name=item["drug_name"],
@@ -95,7 +103,7 @@ class OCRResultCallbackView(APIView):
             job.file.status = "completed"
             job.file.save(update_fields=["status"])
             
-            logger.info(f"Successfully processed OCR results for job {job_uuid}: {len(payload['items'])} items extracted")
+            logger.info(f"Successfully processed OCR results for job {job_uuid}: {len(normalized_items)} items extracted")
 
         return Response({"detail": "Result received"}, status=200)
 
