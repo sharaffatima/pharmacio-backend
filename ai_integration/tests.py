@@ -35,6 +35,19 @@ def _valid_payload():
     }
 
 
+def _raw_steps_payload():
+    return {
+        "page_001_raw_steps": [
+            {"Col_1": "صيدلي", "Col_2": "العرض", "Col_3": "اسم المادة"},
+            {"Col_1": "", "Col_2": "", "Col_3": "سان لايف"},
+            {"Col_1": "188,000", "Col_2": "", "Col_3": "زد لوتين / سان لايف"},
+            {"Col_1": "30,000", "Col_2": "", "Col_3": "فيتامين سي 1000 فوار / سان لايف"},
+            {"Col_1": "", "Col_2": "", "Col_3": "بوريسكا"},
+            {"Col_1": "100,000", "Col_2": "", "Col_3": "ايمون كير مناعة / بوريسكا"},
+        ]
+    }
+
+
 class OCRJobModelTests(TestCase):
     def test_ocrjob_defaults(self):
         f = File.objects.create(
@@ -154,6 +167,37 @@ class OCRResultCallbackTests(TestCase):
         self.assertEqual(first.extracted_product_name, "Paracetamol")
         self.assertEqual(first.extracted_company, "ExamplePharma")
         self.assertEqual(first.extracted_unit_price, Decimal("2.99"))
+
+    def test_callback_accepts_raw_steps_and_normalizes_items(self):
+        url = reverse("ocr-result-callback")
+        body = {"job_id": str(self.job.job_id), "payload": _raw_steps_payload()}
+
+        resp = self.client.post(url, data=body, format="json")
+        self.assertEqual(resp.status_code, 200)
+
+        self.job.refresh_from_db()
+        self.assertEqual(self.job.status, "ocr_done")
+
+        result = OCRResults.objects.filter(file=self.file).order_by("-created_at").first()
+        self.assertIsNotNone(result)
+        # Raw table rows are normalized with default confidence=0.5 and review_required=True.
+        self.assertAlmostEqual(result.confidence_score, 0.5)
+        self.assertTrue(result.review_required)
+
+        items = OCRResultItem.objects.filter(ocr_result=result).order_by("id")
+        self.assertEqual(items.count(), 3)
+
+        self.assertEqual(items[0].extracted_product_name, "زد لوتين")
+        self.assertEqual(items[0].extracted_company, "سان لايف")
+        self.assertEqual(items[0].extracted_unit_price, Decimal("188000.00"))
+
+        self.assertEqual(items[1].extracted_product_name, "فيتامين سي1000فوار")
+        self.assertEqual(items[1].extracted_company, "سان لايف")
+        self.assertEqual(items[1].extracted_unit_price, Decimal("30000.00"))
+
+        self.assertEqual(items[2].extracted_product_name, "ايمون كير مناعه")
+        self.assertEqual(items[2].extracted_company, "بوريسكا")
+        self.assertEqual(items[2].extracted_unit_price, Decimal("100000.00"))
 
 
 class OCRDispatchServiceTests(TestCase):
@@ -484,6 +528,14 @@ class OCRResultSerializerValidationTests(TestCase):
 
         resp = self.client.post(url, data=body, format="json")
         self.assertEqual(resp.status_code, 422)
+
+    def test_raw_steps_payload_succeeds(self):
+        """Raw OCR table payload should be accepted and normalized downstream."""
+        url = reverse("ocr-result-callback")
+        body = {"job_id": str(self.job.job_id), "payload": _raw_steps_payload()}
+
+        resp = self.client.post(url, data=body, format="json")
+        self.assertEqual(resp.status_code, 200)
 
     def test_items_not_list_fails(self):
         """Test that non-list items fails validation"""

@@ -25,4 +25,27 @@ class OCRPayloadSerializer(serializers.Serializer):
 class OCRResultSerializer(serializers.Serializer):
     """Validates the complete callback request from OCR engine."""
     job_id = serializers.UUIDField()
-    payload = OCRPayloadSerializer()
+    payload = serializers.DictField()
+
+    def validate_payload(self, value):
+        # Accept legacy normalized payload.
+        if "items" in value:
+            nested = OCRPayloadSerializer(data=value)
+            nested.is_valid(raise_exception=True)
+            return nested.validated_data
+
+        # Accept raw OCR engine table payloads like page_001_raw_steps.
+        raw_step_keys = [k for k in value.keys() if k.endswith("_raw_steps")]
+        if raw_step_keys:
+            for key in raw_step_keys:
+                rows = value.get(key)
+                if not isinstance(rows, list):
+                    raise serializers.ValidationError({key: "Must be a list of row objects."})
+                for row in rows:
+                    if not isinstance(row, dict):
+                        raise serializers.ValidationError({key: "Each row must be an object."})
+            return value
+
+        raise serializers.ValidationError(
+            "Payload must include either 'items' or at least one '*_raw_steps' list."
+        )
