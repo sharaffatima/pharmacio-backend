@@ -36,6 +36,7 @@ class RegisterView(generics.CreateAPIView):
     queryset = User.objects.all()
     serializer_class = RegisterSerializer
     permission_classes = [permissions.AllowAny]
+    throttle_scope = 'register'
 
     def post(self, request, *args, **kwargs):
         logger.info("User registration request received")
@@ -64,6 +65,7 @@ class RegisterView(generics.CreateAPIView):
 
 class LoginView(APIView):
     permission_classes = [permissions.AllowAny]
+    throttle_scope = 'login'
 
     def post(self, request):
         logger.info("User login request received")
@@ -105,6 +107,13 @@ class LogoutView(APIView):
 
     def post(self, request):
         logger.info(f"User logout: {request.user.username}")
+        refresh_token = request.data.get("refresh")
+        if refresh_token:
+            try:
+                token = RefreshToken(refresh_token)
+                token.blacklist()
+            except Exception:
+                logger.warning("Failed to blacklist refresh token for %s", request.user.username)
         logout(request)
         return Response({'message': 'Logout successful'}, status=status.HTTP_200_OK)
 

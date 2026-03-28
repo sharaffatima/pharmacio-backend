@@ -26,19 +26,16 @@ class InternalServiceAuthentication(BasePermission):
     def has_permission(self, request, view):
         auth_header = request.headers.get('Authorization', '')
         internal_token = getattr(settings, 'INTERNAL_SERVICE_TOKEN', '')
-        
-        # Allow if token matches and is not empty
-        if internal_token and auth_header == internal_token:
+
+        if not internal_token:
+            logger.error("INTERNAL_SERVICE_TOKEN is not configured – denying request")
+            return False
+
+        if auth_header == internal_token:
             logger.debug("OCR callback authenticated successfully")
             return True
-        
-        # For development/testing, allow if token is empty string (not set)
-        # Remove this in production
-        if not internal_token:
-            logger.warning("OCR callback authentication bypassed - INTERNAL_SERVICE_TOKEN not set")
-            return True
-        
-        logger.warning(f"OCR callback authentication failed - invalid token")
+
+        logger.warning("OCR callback authentication failed - invalid token")
         return False
 
 class OCRResultCallbackView(APIView):

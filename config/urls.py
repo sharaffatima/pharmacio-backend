@@ -18,6 +18,9 @@ from django.contrib import admin
 from django.urls import path,include
 from django.http import JsonResponse
 from django.db import connection
+import logging
+
+logger = logging.getLogger(__name__)
 
 def health(request):
     return JsonResponse({"status": "ok"})
@@ -29,7 +32,8 @@ def health_db(request):
             cursor.fetchone()
         return JsonResponse({"status": "ok", "db": "ok"})
     except Exception as e:
-        return JsonResponse({"status": "degraded", "db": "error", "detail": str(e)}, status=503)
+        logger.exception("Health-check DB probe failed: %s", e)
+        return JsonResponse({"status": "degraded", "db": "error"}, status=503)
     
 
 urlpatterns = [

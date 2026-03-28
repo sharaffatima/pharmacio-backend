@@ -243,8 +243,8 @@ class FileUploadViewTests(TestCase):
                 format='multipart'
             )
         
-        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
-        self.assertIn('Unexpected error', response.json()['detail'])
+        self.assertEqual(response.status_code, status.HTTP_500_INTERNAL_SERVER_ERROR)
+        self.assertIn('unexpected error', response.json()['detail'].lower())
 
 
 class UploadStatusViewTests(TestCase):

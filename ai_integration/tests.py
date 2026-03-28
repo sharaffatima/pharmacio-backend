@@ -108,10 +108,11 @@ class CeleryDispatchTests(TestCase):
         mock_dispatch.assert_called_once()
 
 
-@override_settings(INTERNAL_SERVICE_TOKEN='')
+@override_settings(INTERNAL_SERVICE_TOKEN='test-service-token')
 class OCRResultCallbackTests(TestCase):
     def setUp(self):
         self.client = APIClient()
+        self.client.credentials(HTTP_AUTHORIZATION='test-service-token')
 
         self.file = File.objects.create(
             s3_key="offers/demo4.pdf",
@@ -506,12 +507,13 @@ class FileUploadCreatesOCRJobTests(TestCase):
         mock_dispatch_task.assert_called_once_with(job.id)
 
 
-@override_settings(INTERNAL_SERVICE_TOKEN='')
+@override_settings(INTERNAL_SERVICE_TOKEN='test-service-token')
 class OCRResultSerializerValidationTests(TestCase):
     """Tests for OCRResultSerializer validation"""
 
     def setUp(self):
         self.client = APIClient()
+        self.client.credentials(HTTP_AUTHORIZATION='test-service-token')
         self.file = File.objects.create(
             s3_key="offers/serializer_test.pdf",
             original_filename="serializer_test.pdf",
