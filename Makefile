@@ -37,7 +37,7 @@ test-ai:
 
 # Server
 run:
-	python manage.py runserver
+	pipenv run python manage.py runserver
 
 # Admin
 createsuperuser:

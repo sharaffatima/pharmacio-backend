@@ -18,7 +18,7 @@ class InventoryListApiTests(TestCase):
         self.client.force_authenticate(user=self.user)
 
     def test_inventory_list_requires_authentication(self):
-        response = APIClient().get("/api/v1/inventory")
+        response = APIClient().get("/api/v1/inventory/")
 
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
 
@@ -31,7 +31,7 @@ class InventoryListApiTests(TestCase):
                 min_threshold=10,
             )
 
-        response = self.client.get("/api/v1/inventory")
+        response = self.client.get("/api/v1/inventory/")
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertIn("count", response.data)
@@ -55,7 +55,7 @@ class InventoryListApiTests(TestCase):
             min_threshold=10,
         )
 
-        response = self.client.get("/api/v1/inventory")
+        response = self.client.get("/api/v1/inventory/")
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         results = response.data["results"]

@@ -7,7 +7,7 @@ from unittest.mock import patch, MagicMock
 import requests
 
 from files.models import File
-from ai_integration.models import OCRJob, OCRResults, OCRResultItem
+from ai_integration.models import OCRJob, OCRResult, OCRResultItem
 from ai_integration.tasks import dispatch_ocr_job
 from ai_integration.services.ocr_dispatch import dispatch_to_ocr_engine, OCRDispatchError
 from users.models import User
@@ -70,9 +70,9 @@ class OCRJobModelTests(TestCase):
 
         # confidence_score must be between 0 and 1
         with self.assertRaises(Exception):
-            OCRResults.objects.create(
-                job=job if "job" in [f.name for f in OCRResults._meta.fields] else None,
-                job_id=job if "job_id" in [f.name for f in OCRResults._meta.fields] else None,
+            OCRResult.objects.create(
+                job=job if "job" in [f.name for f in OCRResult._meta.fields] else None,
+                job_id=job if "job_id" in [f.name for f in OCRResult._meta.fields] else None,
                 file=f,
                 ware_house_name="WH",
                 confidence_score=1.5,
@@ -108,10 +108,11 @@ class CeleryDispatchTests(TestCase):
         mock_dispatch.assert_called_once()
 
 
-@override_settings(INTERNAL_SERVICE_TOKEN='')
+@override_settings(INTERNAL_SERVICE_TOKEN='test-service-token')
 class OCRResultCallbackTests(TestCase):
     def setUp(self):
         self.client = APIClient()
+        self.client.credentials(HTTP_AUTHORIZATION='test-service-token')
 
         self.file = File.objects.create(
             s3_key="offers/demo4.pdf",
@@ -151,8 +152,8 @@ class OCRResultCallbackTests(TestCase):
         self.file.refresh_from_db()
         self.assertEqual(self.file.status, "completed")
 
-        # OCRResults created with correct aggregated data
-        result = OCRResults.objects.filter(file=self.file).order_by("-created_at").first()
+        # OCRResult created with correct aggregated data
+        result = OCRResult.objects.filter(file=self.file).order_by("-created_at").first()
         self.assertIsNotNone(result)
         self.assertEqual(result.status, "completed")
         self.assertEqual(result.ware_house_name, "Warehouse A")
@@ -178,7 +179,7 @@ class OCRResultCallbackTests(TestCase):
         self.job.refresh_from_db()
         self.assertEqual(self.job.status, "ocr_done")
 
-        result = OCRResults.objects.filter(file=self.file).order_by("-created_at").first()
+        result = OCRResult.objects.filter(file=self.file).order_by("-created_at").first()
         self.assertIsNotNone(result)
         # Raw table rows are normalized with default confidence=0.5 and review_required=True.
         self.assertAlmostEqual(result.confidence_score, 0.5)
@@ -491,7 +492,7 @@ class FileUploadCreatesOCRJobTests(TestCase):
             format="multipart",
         )
 
-        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(resp.status_code, 201)
 
         # Check that OCRJob was created
         jobs = OCRJob.objects.all()
@@ -506,12 +507,13 @@ class FileUploadCreatesOCRJobTests(TestCase):
         mock_dispatch_task.assert_called_once_with(job.id)
 
 
-@override_settings(INTERNAL_SERVICE_TOKEN='')
+@override_settings(INTERNAL_SERVICE_TOKEN='test-service-token')
 class OCRResultSerializerValidationTests(TestCase):
     """Tests for OCRResultSerializer validation"""
 
     def setUp(self):
         self.client = APIClient()
+        self.client.credentials(HTTP_AUTHORIZATION='test-service-token')
         self.file = File.objects.create(
             s3_key="offers/serializer_test.pdf",
             original_filename="serializer_test.pdf",
@@ -649,14 +651,14 @@ class OfferComparisonServiceTests(TestCase):
             status="completed",
             ware_house_name="Warehouse Beta",
         )
-        self.offer1 = OCRResults.objects.create(
+        self.offer1 = OCRResult.objects.create(
             file=self.file1,
             ware_house_name="Warehouse Alpha",
             confidence_score=0.9,
             review_required=False,
             status="completed",
         )
-        self.offer2 = OCRResults.objects.create(
+        self.offer2 = OCRResult.objects.create(
             file=self.file2,
             ware_house_name="Warehouse Beta",
             confidence_score=0.85,

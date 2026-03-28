@@ -12,7 +12,7 @@ from rbac.services.audit import create_audit_log
 
 logger = logging.getLogger(__name__)
 
-from ai_integration.models import OCRJob, OCRResults, OCRResultItem
+from ai_integration.models import OCRJob, OCRResult, OCRResultItem
 from ai_integration.serializers import OCRResultSerializer
 from ai_integration.services.payload_normalization import normalize_ocr_payload_items
 from ai_integration.tasks import dispatch_ocr_job
@@ -26,19 +26,16 @@ class InternalServiceAuthentication(BasePermission):
     def has_permission(self, request, view):
         auth_header = request.headers.get('Authorization', '')
         internal_token = getattr(settings, 'INTERNAL_SERVICE_TOKEN', '')
-        
-        # Allow if token matches and is not empty
-        if internal_token and auth_header == internal_token:
+
+        if not internal_token:
+            logger.error("INTERNAL_SERVICE_TOKEN is not configured – denying request")
+            return False
+
+        if auth_header == internal_token:
             logger.debug("OCR callback authenticated successfully")
             return True
-        
-        # For development/testing, allow if token is empty string (not set)
-        # Remove this in production
-        if not internal_token:
-            logger.warning("OCR callback authentication bypassed - INTERNAL_SERVICE_TOKEN not set")
-            return True
-        
-        logger.warning(f"OCR callback authentication failed - invalid token")
+
+        logger.warning("OCR callback authentication failed - invalid token")
         return False
 
 class OCRResultCallbackView(APIView):
@@ -75,8 +72,8 @@ class OCRResultCallbackView(APIView):
                 logger.error(f"OCR callback received for unknown job_id: {job_uuid}")
                 return Response({"detail": "Unknown job_id"}, status=status.HTTP_400_BAD_REQUEST)
 
-            # Create OCRResults row with aggregated data
-            result = OCRResults.objects.create(
+            # Create OCRResult row with aggregated data
+            result = OCRResult.objects.create(
                 job=job,
                 file=job.file,
                 ware_house_name=job.file.ware_house_name,
@@ -85,14 +82,16 @@ class OCRResultCallbackView(APIView):
                 status="completed",
             )
 
-            # Create OCRResultItem for each extracted item
-            for item in normalized_items:
-                OCRResultItem.objects.create(
+            # Create OCRResultItems in a single bulk INSERT
+            OCRResultItem.objects.bulk_create([
+                OCRResultItem(
                     ocr_result=result,
                     extracted_product_name=item["drug_name"],
                     extracted_company=item.get("company"),
                     extracted_unit_price=item["price"],
                 )
+                for item in normalized_items
+            ])
 
             # Update job status to ocr_done
             job.status = "ocr_done"

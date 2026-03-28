@@ -1,13 +1,7 @@
 from rest_framework import serializers
 from django.contrib.auth import authenticate
-from django.contrib.auth.password_validation import validate_password
 from .models import User
-from rest_framework.exceptions import PermissionDenied
-from rbac.models import Role
-from .utils import create_admin_user
-
-
-from rbac.models import UserRole, Role
+from rbac.models import Role, UserRole
 
 
 class UserSerializer(serializers.ModelSerializer):

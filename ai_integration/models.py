@@ -29,7 +29,7 @@ class OCRJob(models.Model):
             models.Index(fields=['updated_at']),
         ]
 
-class OCRResults(models.Model):
+class OCRResult(models.Model):
     job = models.ForeignKey(OCRJob, null=True, blank=True, on_delete=models.SET_NULL, related_name='ocr_results')
     file = models.ForeignKey(File, on_delete=models.CASCADE, related_name='ocr_results')
     ware_house_name = models.CharField(max_length=255, null=True, blank=True)
@@ -39,9 +39,10 @@ class OCRResults(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
-        return f"OCRResults for {self.ware_house_name}"
+        return f"OCRResult for {self.ware_house_name}"
 
     class Meta:
+        db_table = 'ai_integration_ocrresults'
         indexes = [
             models.Index(fields=['ware_house_name']),
             models.Index(fields=['file']),
@@ -56,7 +57,7 @@ class OCRResults(models.Model):
         ]
 
 class OCRResultItem(models.Model):
-    ocr_result = models.ForeignKey(OCRResults, on_delete=models.CASCADE, related_name='items')
+    ocr_result = models.ForeignKey(OCRResult, on_delete=models.CASCADE, related_name='items')
     extracted_product_name = models.CharField(max_length=255)
     extracted_company = models.CharField(max_length=255, blank=True, null=True)
     extracted_unit_price = models.DecimalField(max_digits=10, decimal_places=2)

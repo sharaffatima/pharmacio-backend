@@ -27,7 +27,15 @@ def user_has_permission(user, permission_code):
 
 class IsAdminUser(permissions.BasePermission):
     def has_permission(self, request, view):
-        return user_has_permission(request.user, '') 
+        if not request.user or not request.user.is_authenticated:
+            return False
+        if getattr(request.user, 'is_superuser', False):
+            return True
+        if getattr(request.user, 'role', None) == 'admin':
+            return True
+        return UserRole.objects.filter(
+            user=request.user, role__name__iexact='admin'
+        ).exists()
 
 
 class HasPermission(permissions.BasePermission):

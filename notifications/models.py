@@ -10,7 +10,7 @@ class NotificationLogEvent(models.TextChoices):
     STOCK_RECOVERED = "stock_recovered", "Stock Recovered"
 
 
-class Notifications(models.Model):
+class Notification(models.Model):
     message = models.TextField()
     type = models.CharField(max_length=50)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -20,6 +20,7 @@ class Notifications(models.Model):
         return f"{self.type} - {self.message[:20]}..."
 
     class Meta:
+        db_table = 'notifications_notifications'
         indexes = [
             models.Index(fields=['type']),
             models.Index(fields=['created_at']),
@@ -69,7 +70,7 @@ class NotificationLog(models.Model):
 
 class UserNotification(models.Model):
     notification = models.ForeignKey(
-        Notifications,
+        Notification,
         on_delete=models.CASCADE,
         related_name="user_notifications",
     )

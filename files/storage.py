@@ -61,6 +61,10 @@ class S3StorageAdapter(StorageAdapter):
         return None
 
 
+import functools
+
+
+@functools.lru_cache(maxsize=1)
 def get_storage_adapter() -> StorageAdapter:
     backend = getattr(settings, "FILE_STORAGE_BACKEND", "")
     backend = backend.lower()

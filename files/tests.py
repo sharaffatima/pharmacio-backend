@@ -63,7 +63,7 @@ class FileUploadViewTests(TestCase):
             format='multipart'
         )
         
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         self.assertIn('upload_id', response.json())
         self.assertEqual(response.json()['original_filename'], 'test_document.pdf')
         self.assertEqual(response.json()['status'], 'uploaded')
@@ -99,7 +99,7 @@ class FileUploadViewTests(TestCase):
             format='multipart'
         )
         
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         self.assertEqual(response.json()['original_filename'], 'test_image.jpg')
         mock_storage_instance.upload_fileobj.assert_called_once()
         mock_dispatch_task.assert_called_once()
@@ -212,7 +212,7 @@ class FileUploadViewTests(TestCase):
             format='multipart'
         )
 
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         mock_storage_instance.upload_fileobj.assert_called_once()
         mock_dispatch_task.assert_called_once()
 
@@ -232,19 +232,18 @@ class FileUploadViewTests(TestCase):
             content_type="application/pdf"
         )
         
-        with patch('files.storage.boto3.client') as mock_s3:
-            mock_s3_client = MagicMock()
-            mock_s3_client.upload_fileobj.side_effect = Exception("S3 connection failed")
-            mock_s3.return_value = mock_s3_client
-            
+        mock_adapter = MagicMock()
+        mock_adapter.upload_fileobj.side_effect = Exception("S3 connection failed")
+        
+        with patch('files.views.get_storage_adapter', return_value=mock_adapter):
             response = self.client.post(
                 '/api/v1/offers/upload/',
                 {'file': file, 'ware_house_name': 'Warehouse A'},
                 format='multipart'
             )
         
-        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
-        self.assertIn('Unexpected error', response.json()['detail'])
+        self.assertEqual(response.status_code, status.HTTP_500_INTERNAL_SERVER_ERROR)
+        self.assertIn('unexpected error', response.json()['detail'].lower())
 
 
 class UploadStatusViewTests(TestCase):
@@ -416,7 +415,7 @@ class FileUploadCreatesOCRJobTests(TestCase):
             format='multipart'
         )
         
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         
         # Verify File record was created
         uploaded_file = File.objects.filter(
@@ -463,7 +462,7 @@ class FileUploadCreatesOCRJobTests(TestCase):
             format='multipart'
         )
         
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         
         # Get the created file
         uploaded_file = File.objects.get(

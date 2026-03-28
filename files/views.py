@@ -41,6 +41,14 @@ class FileUploadView(APIView):
                 status=status.HTTP_400_BAD_REQUEST
             )
 
+        max_upload_size = 10 * 1024 * 1024  # 10 MB
+        if file_obj.size > max_upload_size:
+            logger.warning(f"File too large ({file_obj.size} bytes) from {request.user.username}")
+            return Response(
+                {"detail": "File size exceeds the 10 MB limit."},
+                status=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE
+            )
+
         ext = os.path.splitext(file_obj.name)[1].lower()
         allowed_extensions = ['.pdf', '.jpg', '.jpeg', '.png']
 
@@ -95,13 +103,13 @@ class FileUploadView(APIView):
 
             serializer = UploadStatusSerializer(file_record)
 
-            return Response(serializer.data, status=status.HTTP_200_OK)
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
 
         except Exception as e:
             logger.exception(f"File upload failed for user {request.user.username}: {e}")
             return Response(
-                {"detail": f"Unexpected error: {str(e)}"},
-                status=status.HTTP_400_BAD_REQUEST
+                {"detail": "An unexpected error occurred. Please try again later."},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
 
 
