@@ -63,7 +63,7 @@ class FileUploadViewTests(TestCase):
             format='multipart'
         )
         
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         self.assertIn('upload_id', response.json())
         self.assertEqual(response.json()['original_filename'], 'test_document.pdf')
         self.assertEqual(response.json()['status'], 'uploaded')
@@ -99,7 +99,7 @@ class FileUploadViewTests(TestCase):
             format='multipart'
         )
         
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         self.assertEqual(response.json()['original_filename'], 'test_image.jpg')
         mock_storage_instance.upload_fileobj.assert_called_once()
         mock_dispatch_task.assert_called_once()
@@ -212,7 +212,7 @@ class FileUploadViewTests(TestCase):
             format='multipart'
         )
 
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         mock_storage_instance.upload_fileobj.assert_called_once()
         mock_dispatch_task.assert_called_once()
 
@@ -416,7 +416,7 @@ class FileUploadCreatesOCRJobTests(TestCase):
             format='multipart'
         )
         
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         
         # Verify File record was created
         uploaded_file = File.objects.filter(
@@ -463,7 +463,7 @@ class FileUploadCreatesOCRJobTests(TestCase):
             format='multipart'
         )
         
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         
         # Get the created file
         uploaded_file = File.objects.get(

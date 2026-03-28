@@ -4,7 +4,7 @@ from django.test import TestCase
 from rest_framework import status
 from rest_framework.test import APIClient
 
-from ai_integration.models import OCRResultItem, OCRResults
+from ai_integration.models import OCRResultItem, OCRResult
 from ai_integration.services.comparison import compare_offers, make_drug_key
 from files.models import File
 from purchases.models import PurchaseHistory, PurchaseProposal
@@ -42,7 +42,7 @@ def _grant_permission(user, permission_code, action="update", role_name=None):
 
 
 def _make_ocr_result(file, ware_house_name="WarehouseA"):
-    return OCRResults.objects.create(
+    return OCRResult.objects.create(
         file=file,
         ware_house_name=ware_house_name,
         confidence_score=0.9,
@@ -218,7 +218,7 @@ class PurchaseProposalAPITest(TestCase):
         _make_item(result_b, "Paracetamol", "PharmaA", "3.00")
 
         response = self.client.post(
-            "/api/v1/purchase-proposals/compare",
+            "/api/v1/purchase-proposals/compare/",
             {"ocr_result_ids": [result_a.id, result_b.id]},
             format="json",
         )
@@ -231,7 +231,7 @@ class PurchaseProposalAPITest(TestCase):
 
     def test_compare_empty_ids_rejected(self):
         response = self.client.post(
-            "/api/v1/purchase-proposals/compare",
+            "/api/v1/purchase-proposals/compare/",
             {"ocr_result_ids": []},
             format="json",
         )
@@ -240,7 +240,7 @@ class PurchaseProposalAPITest(TestCase):
     def test_compare_requires_authentication(self):
         self.client.force_authenticate(user=None)
         response = self.client.post(
-            "/api/v1/purchase-proposals/compare",
+            "/api/v1/purchase-proposals/compare/",
             {"ocr_result_ids": [1]},
             format="json",
         )
@@ -253,7 +253,7 @@ class PurchaseProposalAPITest(TestCase):
         _make_item(result_a, "Paracetamol", "PharmaA", "2.50")
 
         response = self.client.post(
-            "/api/v1/purchase-proposals/generate",
+            "/api/v1/purchase-proposals/generate/",
             {"ocr_result_ids": [result_a.id]},
             format="json",
         )
@@ -268,7 +268,7 @@ class PurchaseProposalAPITest(TestCase):
         result_a = _make_ocr_result(self.file, "WarehouseA")
 
         response = self.client.post(
-            "/api/v1/purchase-proposals/generate",
+            "/api/v1/purchase-proposals/generate/",
             {"ocr_result_ids": [result_a.id]},
             format="json",
         )
@@ -278,7 +278,7 @@ class PurchaseProposalAPITest(TestCase):
     def test_generate_requires_authentication(self):
         self.client.force_authenticate(user=None)
         response = self.client.post(
-            "/api/v1/purchase-proposals/generate",
+            "/api/v1/purchase-proposals/generate/",
             {"ocr_result_ids": [1]},
             format="json",
         )
@@ -291,7 +291,7 @@ class PurchaseProposalAPITest(TestCase):
         _make_item(result_a, "Paracetamol", "PharmaA", "2.50")
         generate_proposal([result_a.id], created_by=self.user)
 
-        response = self.client.get("/api/v1/purchase-proposals")
+        response = self.client.get("/api/v1/purchase-proposals/")
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         body = response.json()
@@ -300,7 +300,7 @@ class PurchaseProposalAPITest(TestCase):
 
     def test_list_requires_authentication(self):
         self.client.force_authenticate(user=None)
-        response = self.client.get("/api/v1/purchase-proposals")
+        response = self.client.get("/api/v1/purchase-proposals/")
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
 
     # detail ───────────────────────────────────────────────────────────────────
@@ -310,20 +310,20 @@ class PurchaseProposalAPITest(TestCase):
         _make_item(result_a, "Paracetamol", "PharmaA", "2.50")
         proposal = generate_proposal([result_a.id], created_by=self.user)
 
-        response = self.client.get(f"/api/v1/purchase-proposals/{proposal.id}")
+        response = self.client.get(f"/api/v1/purchase-proposals/{proposal.id}/")
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.json()["id"], proposal.id)
 
     def test_detail_404_for_unknown_id(self):
-        response = self.client.get("/api/v1/purchase-proposals/99999")
+        response = self.client.get("/api/v1/purchase-proposals/99999/")
         self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
 
     # approval workflow ───────────────────────────────────────────────────────
 
     def test_approve_requires_authentication(self):
         self.client.force_authenticate(user=None)
-        response = self.client.post("/api/v1/purchase-proposals/1/approve")
+        response = self.client.post("/api/v1/purchase-proposals/1/approve/")
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
 
     def test_approve_requires_permission(self):
@@ -331,7 +331,7 @@ class PurchaseProposalAPITest(TestCase):
         _make_item(result_a, "Paracetamol", "PharmaA", "2.50")
         proposal = generate_proposal([result_a.id], created_by=self.user)
 
-        response = self.client.post(f"/api/v1/purchase-proposals/{proposal.id}/approve")
+        response = self.client.post(f"/api/v1/purchase-proposals/{proposal.id}/approve/")
 
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
 
@@ -341,7 +341,7 @@ class PurchaseProposalAPITest(TestCase):
         proposal = generate_proposal([result_a.id], created_by=self.user)
         self.client.force_authenticate(user=self.approver)
 
-        response = self.client.post(f"/api/v1/purchase-proposals/{proposal.id}/approve")
+        response = self.client.post(f"/api/v1/purchase-proposals/{proposal.id}/approve/")
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         proposal.refresh_from_db()
@@ -367,7 +367,7 @@ class PurchaseProposalAPITest(TestCase):
         proposal.save(update_fields=["status", "updated_at"])
         self.client.force_authenticate(user=self.approver)
 
-        response = self.client.post(f"/api/v1/purchase-proposals/{proposal.id}/approve")
+        response = self.client.post(f"/api/v1/purchase-proposals/{proposal.id}/approve/")
 
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
@@ -377,7 +377,7 @@ class PurchaseProposalAPITest(TestCase):
         proposal = generate_proposal([result_a.id], created_by=self.user)
         self.client.force_authenticate(user=self.approver)
 
-        response = self.client.post(f"/api/v1/purchase-proposals/{proposal.id}/reject")
+        response = self.client.post(f"/api/v1/purchase-proposals/{proposal.id}/reject/")
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         proposal.refresh_from_db()
@@ -395,7 +395,7 @@ class PurchaseProposalAPITest(TestCase):
         _make_item(result_a, "Paracetamol", "PharmaA", "2.50")
         proposal = generate_proposal([result_a.id], created_by=self.user)
 
-        response = self.client.post(f"/api/v1/purchase-proposals/{proposal.id}/reject")
+        response = self.client.post(f"/api/v1/purchase-proposals/{proposal.id}/reject/")
 
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
 
@@ -404,15 +404,15 @@ class PurchaseProposalAPITest(TestCase):
         _make_item(result_a, "Paracetamol", "PharmaA", "2.50")
         proposal = generate_proposal([result_a.id], created_by=self.user)
         self.client.force_authenticate(user=self.approver)
-        self.client.post(f"/api/v1/purchase-proposals/{proposal.id}/approve")
+        self.client.post(f"/api/v1/purchase-proposals/{proposal.id}/approve/")
 
-        response = self.client.get(f"/api/v1/purchase-proposals/{proposal.id}/status")
+        response = self.client.get(f"/api/v1/purchase-proposals/{proposal.id}/status/")
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.json()["status"], "approved")
         self.assertEqual(response.json()["approved_by"], str(self.approver))
 
     def test_status_endpoint_404_for_unknown_id(self):
-        response = self.client.get("/api/v1/purchase-proposals/99999/status")
+        response = self.client.get("/api/v1/purchase-proposals/99999/status/")
         self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
 

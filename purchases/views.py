@@ -35,7 +35,7 @@ class CompareOffersView(APIView):
     """
     POST /api/v1/purchase-proposals/compare
     Body: { "ocr_result_ids": [1, 2, …] }
-    Returns: deterministic best-price comparison per drug across the given OCRResults.
+    Returns: deterministic best-price comparison per drug across the given OCRResult entries.
     """
 
     permission_classes = [IsAuthenticated]

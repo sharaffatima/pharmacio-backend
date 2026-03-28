@@ -11,7 +11,7 @@ from sales.models import Sale
 
 
 class SalesCreateApiTests(TestCase):
-	URL = "/api/v1/sales"
+	URL = "/api/v1/sales/"
 
 	def _make_user(self, username, email, with_permission=False):
 		user = get_user_model().objects.create_user(

@@ -10,7 +10,7 @@ from notifications.models import (
 	NotificationLog,
 	NotificationLogEvent,
 	NotificationType,
-	Notifications,
+	Notification,
 	StockAlertRecord,
 )
 
@@ -26,11 +26,11 @@ class PostgresThresholdTriggerTests(TestCase):
 			min_threshold=10,
 		)
 
-		self.assertEqual(Notifications.objects.count(), 1)
+		self.assertEqual(Notification.objects.count(), 1)
 		self.assertEqual(NotificationLog.objects.count(), 1)
 		self.assertEqual(item.stock_alert_record.logs.count(), 1)
 
-		notif = Notifications.objects.first()
+		notif = Notification.objects.first()
 		self.assertEqual(notif.type, NotificationType.LOW_STOCK)
 
 		record = StockAlertRecord.objects.get(inventory=item)
@@ -44,7 +44,7 @@ class PostgresThresholdTriggerTests(TestCase):
 		item.quantity_on_hand = 20
 		item.save(update_fields=["quantity_on_hand", "updated_at"])
 
-		self.assertEqual(Notifications.objects.count(), 1)
+		self.assertEqual(Notification.objects.count(), 1)
 		self.assertEqual(NotificationLog.objects.count(), 2)
 
 		record.refresh_from_db()
@@ -69,7 +69,7 @@ class NotificationInboxApiTests(TestCase):
 			role="admin",
 		)
 
-		self.notification = Notifications.objects.create(
+		self.notification = Notification.objects.create(
 			message="Low stock alert: test",
 			type=NotificationType.LOW_STOCK,
 		)

@@ -95,7 +95,7 @@ class FileUploadView(APIView):
 
             serializer = UploadStatusSerializer(file_record)
 
-            return Response(serializer.data, status=status.HTTP_200_OK)
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
 
         except Exception as e:
             logger.exception(f"File upload failed for user {request.user.username}: {e}")

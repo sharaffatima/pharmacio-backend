@@ -12,7 +12,7 @@ from rbac.services.audit import create_audit_log
 
 logger = logging.getLogger(__name__)
 
-from ai_integration.models import OCRJob, OCRResults, OCRResultItem
+from ai_integration.models import OCRJob, OCRResult, OCRResultItem
 from ai_integration.serializers import OCRResultSerializer
 from ai_integration.services.payload_normalization import normalize_ocr_payload_items
 from ai_integration.tasks import dispatch_ocr_job
@@ -75,8 +75,8 @@ class OCRResultCallbackView(APIView):
                 logger.error(f"OCR callback received for unknown job_id: {job_uuid}")
                 return Response({"detail": "Unknown job_id"}, status=status.HTTP_400_BAD_REQUEST)
 
-            # Create OCRResults row with aggregated data
-            result = OCRResults.objects.create(
+            # Create OCRResult row with aggregated data
+            result = OCRResult.objects.create(
                 job=job,
                 file=job.file,
                 ware_house_name=job.file.ware_house_name,

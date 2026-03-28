@@ -45,11 +45,11 @@ def compare_offers(
     requested_drug_keys: Optional[set] = None,
 ) -> list:
     """
-    Compare OCRResultItems across the given OCRResults to find the cheapest
+    Compare OCRResultItems across the given OCRResult entries to find the cheapest
     available offer for each drug key.
 
     Args:
-        ocr_result_ids:     PKs of OCRResults to compare.
+        ocr_result_ids:     PKs of OCRResult entries to compare.
         requested_drug_keys: Optional set of drug_key strings that must appear
                              in output even when absent from all offers.
 

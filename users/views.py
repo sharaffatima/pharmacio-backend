@@ -1,16 +1,14 @@
 import logging
-from rbac.models import UserRole, Role, Permission
-from rbac.permissions import user_has_permission
-from rbac.models import Role
-from rest_framework.exceptions import PermissionDenied
-from rbac.models import RolePermission, Permission
+
+from django.contrib.auth import logout
+from django.contrib.auth.hashers import check_password
 from rest_framework import status, generics, permissions
 from rest_framework.response import Response
 from rest_framework.views import APIView
-from django.contrib.auth import login, logout
-from django.contrib.auth.hashers import check_password
-from rbac.permissions import HasPermission
 from rest_framework_simplejwt.tokens import RefreshToken
+
+from rbac.models import UserRole
+from rbac.permissions import user_has_permission
 from rbac.services.audit import create_audit_log
 
 from .models import User
