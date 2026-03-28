@@ -37,7 +37,7 @@ test-ai:
 
 # Server
 run:
-	python manage.py runserver
+	pipenv run python manage.py runserver
 
 # Admin
 createsuperuser:
@@ -58,6 +58,9 @@ up:
 
 down:
 	docker compose down
+
+build:
+	docker compose build
 
 build:
 	docker compose build

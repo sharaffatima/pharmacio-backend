@@ -16,8 +16,15 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 COPY requirements.txt /app/requirements.txt
 RUN pip install --upgrade pip && pip install -r requirements.txt
 
+# Create non-root user
+RUN addgroup --system app && adduser --system --ingroup app app
+
 # Copy project
 COPY . /app
+
+# Own the app directory
+RUN chown -R app:app /app
+USER app
 
 EXPOSE 8000
 
