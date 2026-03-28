@@ -232,11 +232,10 @@ class FileUploadViewTests(TestCase):
             content_type="application/pdf"
         )
         
-        with patch('files.storage.boto3.client') as mock_s3:
-            mock_s3_client = MagicMock()
-            mock_s3_client.upload_fileobj.side_effect = Exception("S3 connection failed")
-            mock_s3.return_value = mock_s3_client
-            
+        mock_adapter = MagicMock()
+        mock_adapter.upload_fileobj.side_effect = Exception("S3 connection failed")
+        
+        with patch('files.views.get_storage_adapter', return_value=mock_adapter):
             response = self.client.post(
                 '/api/v1/offers/upload/',
                 {'file': file, 'ware_house_name': 'Warehouse A'},

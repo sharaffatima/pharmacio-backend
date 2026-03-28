@@ -14,9 +14,6 @@ class Inventory(models.Model):
         indexes = [
             models.Index(fields=['product_name']),
             models.Index(fields=['strength']),
-            models.Index(fields=['quantity_on_hand']),
-            models.Index(fields=['min_threshold']),
-            models.Index(fields=['updated_at']),
         ]
         constraints = [
             models.CheckConstraint(

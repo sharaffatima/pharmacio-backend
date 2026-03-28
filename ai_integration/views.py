@@ -82,14 +82,16 @@ class OCRResultCallbackView(APIView):
                 status="completed",
             )
 
-            # Create OCRResultItem for each extracted item
-            for item in normalized_items:
-                OCRResultItem.objects.create(
+            # Create OCRResultItems in a single bulk INSERT
+            OCRResultItem.objects.bulk_create([
+                OCRResultItem(
                     ocr_result=result,
                     extracted_product_name=item["drug_name"],
                     extracted_company=item.get("company"),
                     extracted_unit_price=item["price"],
                 )
+                for item in normalized_items
+            ])
 
             # Update job status to ocr_done
             job.status = "ocr_done"
