@@ -1,5 +1,6 @@
 import logging
 from rest_framework import generics, status, permissions
+from rest_framework.exceptions import PermissionDenied
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from django.shortcuts import get_object_or_404
@@ -90,7 +91,7 @@ class RoleDetailView(generics.RetrieveUpdateDestroyAPIView):
 
     def perform_destroy(self, instance):
         if instance.is_system:
-            raise PermissionError("Cannot delete system role")
+            raise PermissionDenied("Cannot delete system role.")
         
         # Capture role name before deletion
         role_name = instance.name

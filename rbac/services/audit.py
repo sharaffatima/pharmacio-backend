@@ -12,12 +12,6 @@ def create_audit_log(*, actor, action: str, entity=None, metadata=None, request=
         oid = str(entity.pk)
         erepr = str(entity)[:255]
 
-    ip = None
-    ua = ""
-    if request is not None:
-        ip = request.META.get("REMOTE_ADDR")
-        ua = request.META.get("HTTP_USER_AGENT", "")[:2000]
-
     AuditLog.objects.create(
         actor=actor,
         action=action,

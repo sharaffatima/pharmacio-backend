@@ -27,7 +27,7 @@ class PurchaseProposal(models.Model):
         ]
 
 class PurchaseProposalItem(models.Model):
-    proposal = models.ForeignKey(PurchaseProposal, on_delete=models.CASCADE, related_name='items', null=True, blank=True)
+    proposal = models.ForeignKey(PurchaseProposal, on_delete=models.CASCADE, related_name='items')
     product_name = models.CharField(max_length=255)
     strength = models.CharField(max_length=100, blank=True, null=True)
     company = models.CharField(max_length=255, blank=True, null=True)
@@ -39,7 +39,7 @@ class PurchaseProposalItem(models.Model):
 
 
 class PurchaseHistory(models.Model):
-    proposal = models.ForeignKey(PurchaseProposal, on_delete=models.CASCADE, related_name='purchase_histories', null=True, blank=True)
+    proposal = models.ForeignKey(PurchaseProposal, on_delete=models.SET_NULL, related_name='purchase_histories', null=True, blank=True)
     total_cost = models.DecimalField(max_digits=10, decimal_places=2)
     purchased_at = models.DateTimeField(auto_now_add=True, null=True, blank=True)
     created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
