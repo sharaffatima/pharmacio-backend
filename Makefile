@@ -62,8 +62,5 @@ down:
 build:
 	docker compose build
 
-build:
-	docker compose build
-
 logs:
 	docker compose logs -f
