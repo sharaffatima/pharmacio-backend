@@ -1,0 +1,772 @@
+{
+  "info": {
+    "_postman_id": "8b8bca92-3860-4fb9-8a07-2121653502a0",
+    "name": "Pharmacio Backend API",
+    "description": "Postman collection for testing the Pharmacio Backend API",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "System",
+      "item": [
+        {
+          "name": "Health",
+          "request": {
+            "method": "GET",
+            "auth": { "type": "noauth" },
+            "url": {
+              "raw": "{{base_url}}/health/",
+              "host": ["{{base_url}}"],
+              "path": ["health", ""]
+            }
+          }
+        },
+        {
+          "name": "Health DB",
+          "request": {
+            "method": "GET",
+            "auth": { "type": "noauth" },
+            "url": {
+              "raw": "{{base_url}}/health/db/",
+              "host": ["{{base_url}}"],
+              "path": ["health", "db", ""]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Auth",
+      "item": [
+        {
+          "name": "Register",
+          "request": {
+            "method": "POST",
+            "auth": { "type": "noauth" },
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"pharmacist1\",\n  \"email\": \"pharmacist1@example.com\",\n  \"password\": \"StrongPass123!\",\n  \"password2\": \"StrongPass123!\",\n  \"first_name\": \"John\",\n  \"last_name\": \"Doe\",\n  \"phone_number\": \"+49123456789\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/auth/register/",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "auth", "register", ""]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "let data = {};",
+                  "try { data = pm.response.json(); } catch (e) { data = {}; }",
+                  "const tokenObj = data.token || data.tokens || {};",
+                  "const access = tokenObj.access || data.access || null;",
+                  "const refresh = tokenObj.refresh || data.refresh || null;",
+                  "if (access) {",
+                  "  pm.collectionVariables.set('access_token', access);",
+                  "  pm.globals.set('access_token', access);",
+                  "  try { pm.environment.set('access_token', access); } catch (e) {}",
+                  "}",
+                  "if (refresh) {",
+                  "  pm.collectionVariables.set('refresh_token', refresh);",
+                  "  pm.globals.set('refresh_token', refresh);",
+                  "  try { pm.environment.set('refresh_token', refresh); } catch (e) {}",
+                  "}",
+                  "pm.test('Token captured', function () {",
+                  "  pm.expect(!!access).to.eql(true);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Login",
+          "request": {
+            "method": "POST",
+            "auth": { "type": "noauth" },
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"pharmacist1\",\n  \"password\": \"StrongPass123!\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/auth/login/",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "auth", "login", ""]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "let data = {};",
+                  "try { data = pm.response.json(); } catch (e) { data = {}; }",
+                  "const tokenObj = data.token || data.tokens || {};",
+                  "const access = tokenObj.access || data.access || null;",
+                  "const refresh = tokenObj.refresh || data.refresh || null;",
+                  "if (access) {",
+                  "  pm.collectionVariables.set('access_token', access);",
+                  "  pm.globals.set('access_token', access);",
+                  "  try { pm.environment.set('access_token', access); } catch (e) {}",
+                  "}",
+                  "if (refresh) {",
+                  "  pm.collectionVariables.set('refresh_token', refresh);",
+                  "  pm.globals.set('refresh_token', refresh);",
+                  "  try { pm.environment.set('refresh_token', refresh); } catch (e) {}",
+                  "}",
+                  "pm.test('Token captured', function () {",
+                  "  pm.expect(!!access).to.eql(true);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Logout",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"refresh\": \"{{refresh_token}}\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/auth/logout/",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "auth", "logout", ""]
+            }
+          }
+        },
+        {
+          "name": "Me (GET)",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/v1/auth/me/",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "auth", "me", ""]
+            }
+          }
+        },
+        {
+          "name": "Me (PUT)",
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"first_name\": \"Jane\",\n  \"last_name\": \"Doe\",\n  \"phone_number\": \"+49123456780\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/auth/me/",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "auth", "me", ""]
+            }
+          }
+        },
+        {
+          "name": "Me (PATCH)",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"phone_number\": \"+49111111111\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/auth/me/",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "auth", "me", ""]
+            }
+          }
+        },
+        {
+          "name": "Change Password",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"old_password\": \"StrongPass123!\",\n  \"new_password\": \"NewStrongPass123!\",\n  \"confirme_password\": \"NewStrongPass123!\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/auth/change-password/",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "auth", "change-password", ""]
+            }
+          }
+        },
+        {
+          "name": "Admin Register",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"admin2\",\n  \"email\": \"admin2@example.com\",\n  \"password\": \"StrongPass123!\",\n  \"password2\": \"StrongPass123!\",\n  \"first_name\": \"Admin\",\n  \"last_name\": \"User\",\n  \"phone_number\": \"+49123456700\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/auth/admin/register/",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "auth", "admin", "register", ""]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "let data = {};",
+                  "try { data = pm.response.json(); } catch (e) { data = {}; }",
+                  "const tokenObj = data.token || data.tokens || {};",
+                  "const access = tokenObj.access || data.access || null;",
+                  "const refresh = tokenObj.refresh || data.refresh || null;",
+                  "if (access) {",
+                  "  pm.collectionVariables.set('access_token', access);",
+                  "  pm.globals.set('access_token', access);",
+                  "  try { pm.environment.set('access_token', access); } catch (e) {}",
+                  "}",
+                  "if (refresh) {",
+                  "  pm.collectionVariables.set('refresh_token', refresh);",
+                  "  pm.globals.set('refresh_token', refresh);",
+                  "  try { pm.environment.set('refresh_token', refresh); } catch (e) {}",
+                  "}",
+                  "pm.test('Token captured', function () {",
+                  "  pm.expect(!!access).to.eql(true);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "RBAC",
+      "item": [
+        {
+          "name": "Permissions (List)",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/v1/rbac/permissions/",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "rbac", "permissions", ""]
+            }
+          }
+        },
+        {
+          "name": "Permissions (Create)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"code\": \"create_inventory\",\n  \"action\": \"Create inventory entries\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/rbac/permissions/",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "rbac", "permissions", ""]
+            }
+          }
+        },
+        {
+          "name": "Permission Detail",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/v1/rbac/permissions/{{permission_id}}/",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "rbac", "permissions", "{{permission_id}}", ""],
+              "variable": [{ "key": "permission_id", "value": "1" }]
+            }
+          }
+        },
+        {
+          "name": "Roles (List)",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/v1/rbac/roles/",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "rbac", "roles", ""]
+            }
+          }
+        },
+        {
+          "name": "Roles (Create)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"inventory_manager\",\n  \"description\": \"Can manage inventory\",\n  \"permission_ids\": [1, 2]\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/rbac/roles/",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "rbac", "roles", ""]
+            }
+          }
+        },
+        {
+          "name": "Role Detail (GET)",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/v1/rbac/roles/{{role_id}}/",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "rbac", "roles", "{{role_id}}", ""],
+              "variable": [{ "key": "role_id", "value": "1" }]
+            }
+          }
+        },
+        {
+          "name": "Role Detail (PUT)",
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"inventory_manager\",\n  \"description\": \"Updated description\",\n  \"permission_ids\": [1, 2, 3]\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/rbac/roles/{{role_id}}/",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "rbac", "roles", "{{role_id}}", ""],
+              "variable": [{ "key": "role_id", "value": "1" }]
+            }
+          }
+        },
+        {
+          "name": "Role Detail (PATCH)",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"description\": \"Patched description\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/rbac/roles/{{role_id}}/",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "rbac", "roles", "{{role_id}}", ""],
+              "variable": [{ "key": "role_id", "value": "1" }]
+            }
+          }
+        },
+        {
+          "name": "Role Detail (DELETE)",
+          "request": {
+            "method": "DELETE",
+            "url": {
+              "raw": "{{base_url}}/api/v1/rbac/roles/{{role_id}}/",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "rbac", "roles", "{{role_id}}", ""],
+              "variable": [{ "key": "role_id", "value": "1" }]
+            }
+          }
+        },
+        {
+          "name": "Role Permissions (GET)",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/v1/rbac/roles/{{role_id}}/permissions/",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "rbac", "roles", "{{role_id}}", "permissions", ""],
+              "variable": [{ "key": "role_id", "value": "1" }]
+            }
+          }
+        },
+        {
+          "name": "Role Permissions (Assign)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"permission_ids\": [1, 2]\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/rbac/roles/{{role_id}}/permissions/",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "rbac", "roles", "{{role_id}}", "permissions", ""],
+              "variable": [{ "key": "role_id", "value": "1" }]
+            }
+          }
+        },
+        {
+          "name": "User Roles (GET)",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/v1/rbac/users/{{user_id}}/roles/",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "rbac", "users", "{{user_id}}", "roles", ""],
+              "variable": [{ "key": "user_id", "value": "1" }]
+            }
+          }
+        },
+        {
+          "name": "User Roles (Assign)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"role_ids\": [1, 2]\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/rbac/users/{{user_id}}/roles/",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "rbac", "users", "{{user_id}}", "roles", ""],
+              "variable": [{ "key": "user_id", "value": "1" }]
+            }
+          }
+        },
+        {
+          "name": "User Role Remove",
+          "request": {
+            "method": "DELETE",
+            "url": {
+              "raw": "{{base_url}}/api/v1/rbac/users/{{user_id}}/roles/{{role_id}}/",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "rbac", "users", "{{user_id}}", "roles", "{{role_id}}", ""],
+              "variable": [
+                { "key": "user_id", "value": "1" },
+                { "key": "role_id", "value": "1" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Check Permission",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/v1/rbac/check-permission/?code=create_inventory",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "rbac", "check-permission", ""],
+              "query": [
+                { "key": "code", "value": "create_inventory" }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Files",
+      "item": [
+        {
+          "name": "Upload Offer File",
+          "request": {
+            "method": "POST",
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                { "key": "file", "type": "file", "src": "" },
+                { "key": "ware_house_name", "value": "Main Warehouse", "type": "text" }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/offers/upload/",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "offers", "upload", ""]
+            }
+          }
+        },
+        {
+          "name": "Upload Status",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/v1/offers/uploads/{{upload_id}}/status/",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "offers", "uploads", "{{upload_id}}", "status", ""],
+              "variable": [{ "key": "upload_id", "value": "00000000-0000-0000-0000-000000000000" }]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "AI Integration",
+      "item": [
+        {
+          "name": "OCR Result Callback (Internal)",
+          "request": {
+            "method": "POST",
+            "auth": { "type": "noauth" },
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "{{internal_service_token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"job_id\": \"{{ocr_job_id}}\",\n  \"payload\": {\n    \"items\": [\n      {\n        \"drug_name\": \"Aspirin\",\n        \"company\": \"Bayer\",\n        \"price\": \"5.25\",\n        \"confidence\": 0.92,\n        \"review_required\": false\n      }\n    ]\n  }\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/ocr/result/",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "ocr", "result", ""]
+            }
+          }
+        },
+        {
+          "name": "OCR Job Status",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/v1/ocr/job/{{job_id}}/",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "ocr", "job", "{{job_id}}", ""],
+              "variable": [{ "key": "job_id", "value": "00000000-0000-0000-0000-000000000000" }]
+            }
+          }
+        },
+        {
+          "name": "OCR Manual Dispatch",
+          "request": {
+            "method": "POST",
+            "url": {
+              "raw": "{{base_url}}/api/v1/ocr/job/{{job_id}}/dispatch/",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "ocr", "job", "{{job_id}}", "dispatch", ""],
+              "variable": [{ "key": "job_id", "value": "00000000-0000-0000-0000-000000000000" }]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Inventory",
+      "item": [
+        {
+          "name": "Inventory List",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/v1/inventory/",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "inventory", ""]
+            }
+          }
+        },
+        {
+          "name": "Inventory Create",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"product_name\": \"Paracetamol\",\n  \"strength\": \"500mg\",\n  \"quantity_on_hand\": 100,\n  \"min_threshold\": 20\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/inventory/",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "inventory", ""]
+            }
+          }
+        },
+        {
+          "name": "Inventory Adjust",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"adjustment\": -5,\n  \"reason\": \"Damaged units\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/inventory/{{inventory_id}}/adjust/",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "inventory", "{{inventory_id}}", "adjust", ""],
+              "variable": [{ "key": "inventory_id", "value": "1" }]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Sales",
+      "item": [
+        {
+          "name": "Record Sale",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"inventory_id\": 1,\n  \"quantity_sold\": 2,\n  \"unit_price\": \"8.50\",\n  \"sold_at\": \"2026-03-28T10:30:00Z\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/sales/",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "sales", ""]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Purchase Proposals",
+      "item": [
+        {
+          "name": "Compare Offers",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"ocr_result_ids\": [1, 2]\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/purchase-proposals/compare/",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "purchase-proposals", "compare", ""]
+            }
+          }
+        },
+        {
+          "name": "Generate Proposal",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"ocr_result_ids\": [1, 2]\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/purchase-proposals/generate/",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "purchase-proposals", "generate", ""]
+            }
+          }
+        },
+        {
+          "name": "Proposal List",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/v1/purchase-proposals/",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "purchase-proposals", ""]
+            }
+          }
+        },
+        {
+          "name": "Proposal Detail",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/v1/purchase-proposals/{{proposal_id}}/",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "purchase-proposals", "{{proposal_id}}", ""],
+              "variable": [{ "key": "proposal_id", "value": "1" }]
+            }
+          }
+        },
+        {
+          "name": "Proposal Approve",
+          "request": {
+            "method": "POST",
+            "url": {
+              "raw": "{{base_url}}/api/v1/purchase-proposals/{{proposal_id}}/approve/",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "purchase-proposals", "{{proposal_id}}", "approve", ""],
+              "variable": [{ "key": "proposal_id", "value": "1" }]
+            }
+          }
+        },
+        {
+          "name": "Proposal Reject",
+          "request": {
+            "method": "POST",
+            "url": {
+              "raw": "{{base_url}}/api/v1/purchase-proposals/{{proposal_id}}/reject/",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "purchase-proposals", "{{proposal_id}}", "reject", ""],
+              "variable": [{ "key": "proposal_id", "value": "1" }]
+            }
+          }
+        },
+        {
+          "name": "Proposal Status",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/v1/purchase-proposals/{{proposal_id}}/status/",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "purchase-proposals", "{{proposal_id}}", "status", ""],
+              "variable": [{ "key": "proposal_id", "value": "1" }]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Notifications",
+      "item": [
+        {
+          "name": "My Notifications",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/v1/notifications/me/?unread_only=true&limit=20",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "notifications", "me", ""],
+              "query": [
+                { "key": "unread_only", "value": "true" },
+                { "key": "limit", "value": "20" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Mark Notification Read",
+          "request": {
+            "method": "POST",
+            "url": {
+              "raw": "{{base_url}}/api/v1/notifications/{{user_notification_id}}/read/",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "notifications", "{{user_notification_id}}", "read", ""],
+              "variable": [{ "key": "user_notification_id", "value": "1" }]
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      { "key": "token", "value": "{{access_token}}", "type": "string" }
+    ]
+  },
+  "variable": [
+    { "key": "base_url", "value": "http://localhost:8000" },
+    { "key": "access_token", "value": "" },
+    { "key": "refresh_token", "value": "" },
+    { "key": "internal_service_token", "value": "" },
+    { "key": "job_id", "value": "00000000-0000-0000-0000-000000000000" },
+    { "key": "ocr_job_id", "value": "00000000-0000-0000-0000-000000000000" },
+    { "key": "upload_id", "value": "00000000-0000-0000-0000-000000000000" },
+    { "key": "inventory_id", "value": "1" },
+    { "key": "proposal_id", "value": "1" },
+    { "key": "permission_id", "value": "1" },
+    { "key": "role_id", "value": "1" },
+    { "key": "user_id", "value": "1" },
+    { "key": "user_notification_id", "value": "1" }
+  ]
+}
