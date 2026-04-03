@@ -1,8 +1,10 @@
 import logging
 from django.db import transaction
+from django.db.models import Count
 from django.utils import timezone
 from django.shortcuts import get_object_or_404
 from django.conf import settings
+from rest_framework import generics
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
@@ -13,7 +15,7 @@ from rbac.services.audit import create_audit_log
 logger = logging.getLogger(__name__)
 
 from ai_integration.models import OCRJob, OCRResult, OCRResultItem
-from ai_integration.serializers import OCRResultSerializer
+from ai_integration.serializers import AvailableOfferSerializer, OCRResultSerializer
 from ai_integration.services.payload_normalization import normalize_ocr_payload_items
 from ai_integration.tasks import dispatch_ocr_job
 
@@ -183,3 +185,33 @@ class ManualDispatchView(APIView):
             "detail": "Dispatch triggered",
             "job_id": str(job.job_id),
         }, status=status.HTTP_202_ACCEPTED)
+
+
+class AvailableOffersView(generics.ListAPIView):
+    """
+    GET /api/v1/available-offers/
+    Returns OCRResult rows that can be selected as offers for comparison/proposals.
+    """
+
+    permission_classes = [IsAuthenticated]
+    serializer_class = AvailableOfferSerializer
+
+    def get_queryset(self):
+        qs = (
+            OCRResult.objects.select_related("file")
+            .annotate(items_count=Count("items"))
+            .order_by("-created_at")
+        )
+
+        # Default: only completed offers (ready for compare/generate)
+        status_param = self.request.query_params.get("status")
+        if status_param:
+            qs = qs.filter(status=status_param)
+        else:
+            qs = qs.filter(status="completed")
+
+        review_required = self.request.query_params.get("review_required")
+        if review_required in {"true", "false"}:
+            qs = qs.filter(review_required=(review_required == "true"))
+
+        return qs

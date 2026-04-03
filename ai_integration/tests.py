@@ -386,6 +386,79 @@ class OCRJobStatusViewTests(TestCase):
         self.assertEqual(resp.status_code, 404)
 
 
+class AvailableOffersViewTests(TestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(
+            email="offers@example.com",
+            username="offersuser",
+            password="testpass123",
+        )
+        self.client = APIClient()
+        self.client.force_authenticate(user=self.user)
+
+        self.file1 = File.objects.create(
+            s3_key="offers/available_1.pdf",
+            original_filename="available_1.pdf",
+            status="completed",
+            ware_house_name="Warehouse One",
+        )
+        self.file2 = File.objects.create(
+            s3_key="offers/available_2.pdf",
+            original_filename="available_2.pdf",
+            status="completed",
+            ware_house_name="Warehouse Two",
+        )
+
+        self.offer1 = OCRResult.objects.create(
+            file=self.file1,
+            ware_house_name="Warehouse One",
+            confidence_score=0.9,
+            review_required=False,
+            status="completed",
+        )
+        self.offer2 = OCRResult.objects.create(
+            file=self.file2,
+            ware_house_name="Warehouse Two",
+            confidence_score=0.7,
+            review_required=True,
+            status="completed",
+        )
+        OCRResultItem.objects.create(
+            ocr_result=self.offer1,
+            extracted_product_name="Paracetamol",
+            extracted_company="PharmaA",
+            extracted_unit_price=Decimal("2.99"),
+        )
+
+    def test_available_offers_requires_auth(self):
+        unauth_client = APIClient()
+        url = reverse("available-offers")
+        resp = unauth_client.get(url)
+        self.assertEqual(resp.status_code, 401)
+
+    def test_available_offers_returns_completed_offers_with_counts(self):
+        url = reverse("available-offers")
+        resp = self.client.get(url)
+        self.assertEqual(resp.status_code, 200)
+
+        data = resp.json()
+        # DRF pagination is enabled: {count, next, previous, results:[...]}
+        self.assertIsInstance(data, dict)
+        self.assertIn("results", data)
+        self.assertEqual(data["count"], 2)
+        results = data["results"]
+        self.assertIsInstance(results, list)
+        self.assertEqual(len(results), 2)
+
+        ids = {row["id"] for row in results}
+        self.assertEqual(ids, {self.offer1.id, self.offer2.id})
+
+        row1 = next(r for r in results if r["id"] == self.offer1.id)
+        self.assertEqual(row1["ware_house_name"], "Warehouse One")
+        self.assertEqual(row1["original_filename"], "available_1.pdf")
+        self.assertEqual(row1["items_count"], 1)
+
+
 class ManualDispatchViewTests(TestCase):
     """Tests for manual dispatch endpoint"""
 

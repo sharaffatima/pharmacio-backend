@@ -49,3 +49,27 @@ class OCRResultSerializer(serializers.Serializer):
         raise serializers.ValidationError(
             "Payload must include either 'items' or at least one '*_raw_steps' list."
         )
+    
+
+# ── Frontend-facing serializers ────────────────────────────────────────────────
+
+class AvailableOfferSerializer(serializers.ModelSerializer):
+    file_id = serializers.UUIDField(source="file.id", read_only=True)
+    original_filename = serializers.CharField(source="file.original_filename", read_only=True)
+    items_count = serializers.IntegerField(read_only=True)
+
+    class Meta:
+        from ai_integration.models import OCRResult
+
+        model = OCRResult
+        fields = [
+            "id",
+            "file_id",
+            "original_filename",
+            "ware_house_name",
+            "status",
+            "confidence_score",
+            "review_required",
+            "created_at",
+            "items_count",
+        ]
