@@ -623,6 +623,17 @@
       "name": "Purchase Proposals",
       "item": [
         {
+          "name": "Available Offers",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/v1/available-offers/",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "available-offers", ""]
+            }
+          }
+        },
+        {
           "name": "Compare Offers",
           "request": {
             "method": "POST",

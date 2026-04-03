@@ -1,5 +1,10 @@
 from django.urls import path
-from ai_integration.views import OCRResultCallbackView, OCRJobStatusView, ManualDispatchView
+from ai_integration.views import (
+    AvailableOffersView,
+    OCRJobStatusView,
+    OCRResultCallbackView,
+    ManualDispatchView,
+)
 
 urlpatterns = [
     # Callback endpoint for OCR engine to post results
@@ -10,5 +15,8 @@ urlpatterns = [
 
     # Admin endpoint to manually trigger OCR job dispatch (for testing)
     path("ocr/job/<uuid:job_id>/dispatch/", ManualDispatchView.as_view(), name="manual-dispatch"),
+
+    # Frontend endpoint to list selectable OCR results ("offers")
+    path("available-offers/", AvailableOffersView.as_view(), name="available-offers"),
     
 ]
