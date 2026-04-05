@@ -13,6 +13,8 @@ services:
         condition: service_healthy
     volumes:
       - .:/app
+    networks:
+      - pharmacio-net
     restart: unless-stopped
     command: sh -c "python manage.py migrate && python manage.py runserver 0.0.0.0:8000"
 
@@ -33,6 +35,8 @@ services:
       timeout: 3s
       retries: 5
     restart: unless-stopped
+    networks:
+      - pharmacio-net
 
   redis:
     image: redis:7
@@ -44,6 +48,8 @@ services:
       timeout: 3s
       retries: 5
     restart: unless-stopped
+    networks:
+      - pharmacio-net
 
   minio:
     image: minio/minio
@@ -63,6 +69,8 @@ services:
       timeout: 3s
       retries: 5
     restart: unless-stopped
+    networks:
+      - pharmacio-net
 
   celery:
     build: .
@@ -79,7 +87,13 @@ services:
     volumes:
       - .:/app
     restart: unless-stopped
+    networks:
+      - pharmacio-net
 
 volumes:
   postgres_data:
   minio_data:
+
+networks:
+  pharmacio-net:
+    external: true

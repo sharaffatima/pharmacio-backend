@@ -8,6 +8,12 @@ Python 3.11 · Django 5.2 · Django REST Framework · PostgreSQL 16 · Redis 7 �
 
 ## Quick Start (Docker)
 
+> [!IMPORTANT]
+> The backend and AI microservice communicate over an external Docker network. You **must** create this network manually once before starting the services, otherwise `docker compose` will throw an error:
+> ```bash
+> docker network create pharmacio-net
+> ```
+
 ```bash
 cp .env.example .env          # adjust values as needed
 docker compose up --build -d
