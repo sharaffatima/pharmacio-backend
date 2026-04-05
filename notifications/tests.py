@@ -127,6 +127,11 @@ class DashboardStatsApiTests(TestCase):
 		
 		# Setup some test data
 		from notifications.models import NotificationType, Notification, UserNotification, StockAlertRecord
+		from django.db import connection
+		
+		if connection.vendor != "postgresql":
+			notif = Notification.objects.create(message="Test", type=NotificationType.LOW_STOCK)
+			UserNotification.objects.create(notification=notif, user=self.user, is_read=False)
 		
 		from inventory.models import Inventory
 		item = Inventory.objects.create(product_name="P1", strength="10mg", quantity_on_hand=5, min_threshold=10)
