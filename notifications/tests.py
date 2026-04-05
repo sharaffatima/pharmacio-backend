@@ -114,3 +114,79 @@ class NotificationInboxApiTests(TestCase):
 		response = client.post(f"/api/v1/notifications/{self.other_entry.id}/read/")
 
 		self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+
+
+class DashboardStatsApiTests(TestCase):
+	def setUp(self):
+		self.user_model = get_user_model()
+		self.user = self.user_model.objects.create_user(
+			username="stats_user",
+			password="password123",
+			role="pharmacist",
+		)
+		
+		# Setup some test data
+		from notifications.models import NotificationType, Notification, UserNotification, StockAlertRecord
+		from django.db import connection
+		
+		if connection.vendor != "postgresql":
+			notif = Notification.objects.create(message="Test", type=NotificationType.LOW_STOCK)
+			UserNotification.objects.create(notification=notif, user=self.user, is_read=False)
+		
+		from inventory.models import Inventory
+		item = Inventory.objects.create(product_name="P1", strength="10mg", quantity_on_hand=5, min_threshold=10)
+		# Update stock_alert_record because the Postgres trigger might do it but here we're using sqlite maybe or we just explicitly set it
+		if hasattr(item, 'stock_alert_record'):
+			item.stock_alert_record.is_below_threshold = True
+			item.stock_alert_record.save()
+		else:
+			StockAlertRecord.objects.create(inventory=item, is_below_threshold=True)
+			
+		from purchases.models import PurchaseProposal
+		PurchaseProposal.objects.create(total_cost=100.0, created_by=self.user, status="pending")
+		
+	def test_get_dashboard_stats(self):
+		client = APIClient()
+		client.force_authenticate(self.user)
+
+		response = client.get("/api/v1/notifications/dashboard/stats/")
+
+		self.assertEqual(response.status_code, status.HTTP_200_OK)
+		self.assertEqual(response.data["activity_alerts"], 1)
+		self.assertEqual(response.data["low_stock"], 1)
+		self.assertEqual(response.data["proposals"], 1)
+		self.assertEqual(response.data["inventory"], 1)
+
+
+class RecentActivityApiTests(TestCase):
+	def setUp(self):
+		self.user_model = get_user_model()
+		self.user = self.user_model.objects.create_user(
+			username="activity_user",
+			password="password123",
+			role="pharmacist",
+		)
+		
+		from rbac.models import AuditLog
+		import datetime
+		from django.utils import timezone
+		
+		# Create some audit logs
+		AuditLog.objects.create(actor=self.user, action="proposal_generated")
+		AuditLog.objects.create(actor=self.user, action="inventory_adjusted")
+		AuditLog.objects.create(actor=None, action="file_uploaded")
+
+	def test_get_recent_activity(self):
+		client = APIClient()
+		client.force_authenticate(self.user)
+
+		response = client.get("/api/v1/notifications/dashboard/recent-activity/?limit=2")
+
+		self.assertEqual(response.status_code, status.HTTP_200_OK)
+		self.assertEqual(len(response.data), 2)
+		self.assertEqual(response.data[0]["action"], "file_uploaded")
+		self.assertEqual(response.data[0]["message"], "File uploaded")
+		self.assertEqual(response.data[0]["actor"], "System")
+
+		self.assertEqual(response.data[1]["action"], "inventory_adjusted")
+		self.assertEqual(response.data[1]["actor"], "activity_user")
