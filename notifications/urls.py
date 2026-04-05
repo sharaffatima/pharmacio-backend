@@ -1,6 +1,6 @@
 from django.urls import path
 
-from notifications.views import MyNotificationsView, MarkNotificationReadView
+from notifications.views import MyNotificationsView, MarkNotificationReadView, DashboardStatsView, RecentActivityView
 
 
 urlpatterns = [
@@ -10,4 +10,6 @@ urlpatterns = [
         MarkNotificationReadView.as_view(),
         name="notifications-mark-read",
     ),
+    path("notifications/dashboard/stats/", DashboardStatsView.as_view(), name="dashboard-stats"),
+    path("notifications/dashboard/recent-activity/", RecentActivityView.as_view(), name="dashboard-recent-activity"),
 ]

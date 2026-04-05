@@ -4,6 +4,7 @@ from django.db import transaction
 
 from ai_integration.services.comparison import compare_offers
 from purchases.models import PurchaseProposal, PurchaseProposalItem
+from rbac.services.audit import create_audit_log
 
 
 def generate_proposal(ocr_result_ids: list, created_by) -> PurchaseProposal:
@@ -51,5 +52,16 @@ def generate_proposal(ocr_result_ids: list, created_by) -> PurchaseProposal:
             )
 
         PurchaseProposalItem.objects.bulk_create(items)
+
+        create_audit_log(
+            actor=created_by,
+            action="proposal_generated",
+            entity=proposal,
+            metadata={
+                "proposal_id": proposal.pk,
+                "total_cost": str(proposal.total_cost),
+                "items_count": len(items),
+            },
+        )
 
     return proposal

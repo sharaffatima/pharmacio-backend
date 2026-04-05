@@ -123,6 +123,7 @@ class UserRole(models.Model):
 class AuditLog(models.Model):
     ACTION_TYPES = (
         # General actions --> Must be implemeted!!
+        ("proposal_generated", "Proposal Generated"),
         ("proposal_approved", "Proposal Approved"),
         ("proposal_rejected", "Proposal Rejected"),
         ("inventory_adjusted", "Inventory Adjusted"),
