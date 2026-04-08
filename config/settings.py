@@ -28,8 +28,13 @@ SECRET_KEY = os.getenv("DJANGO_SECRET_KEY", "dev-only-change-me")
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = os.getenv("DJANGO_DEBUG", "False").lower() == "true"
 
-ALLOWED_HOSTS = os.getenv("DJANGO_ALLOWED_HOSTS",
-                          "localhost,127.0.0.1").split(",")
+ALLOWED_HOSTS = ["*"] # Allow all hosts for easy cloud testing/demo
+
+# Add cors allowed origins
+CORS_ALLOWED_ORIGINS = [
+    "https://pharmacio-web.onrender.com",
+    "http://localhost:3000", # for flutter web dev
+]
 
 
 # Application definition
@@ -41,6 +46,7 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'corsheaders',
     'rest_framework',
     "rest_framework_simplejwt",
     "rest_framework_simplejwt.token_blacklist",
@@ -58,6 +64,7 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
+    'corsheaders.middleware.CorsMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     # 'django.middleware.csrf.CsrfViewMiddleware',
