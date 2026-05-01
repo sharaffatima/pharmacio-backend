@@ -1,10 +1,12 @@
 from django.db import transaction
+from django.db.models import F
 from rest_framework import generics, status
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from ai_integration.services.comparison import compare_offers
+from ai_integration.services.comparison import compare_offers, make_drug_key
+from inventory.models import Inventory
 from purchases.models import PurchaseHistory, PurchaseProposal
 from purchases.serializers import (
     DrugComparisonSerializer,
@@ -45,7 +47,13 @@ class CompareOffersView(APIView):
         serializer.is_valid(raise_exception=True)
         ocr_result_ids = serializer.validated_data["ocr_result_ids"]
 
-        comparisons = compare_offers(ocr_result_ids)
+        low_stock_items = Inventory.objects.filter(quantity_on_hand__lte=F('min_threshold'))
+        requested_keys = {
+            make_drug_key(item.product_name, None)
+            for item in low_stock_items
+        }
+
+        comparisons = compare_offers(ocr_result_ids, requested_drug_keys=requested_keys)
         return Response(DrugComparisonSerializer(comparisons, many=True).data)
 
 
@@ -64,13 +72,15 @@ class GenerateProposalView(APIView):
         ocr_result_ids = serializer.validated_data["ocr_result_ids"]
 
         try:
-            proposal = generate_proposal(ocr_result_ids, created_by=request.user)
+            proposals = generate_proposal(ocr_result_ids, created_by=request.user)
         except ValueError as exc:
             return Response({"detail": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
 
-        proposal_full = PurchaseProposal.objects.prefetch_related("items").get(pk=proposal.pk)
+        proposal_ids = [p.pk for p in proposals]
+        proposals_full = PurchaseProposal.objects.prefetch_related("items").filter(pk__in=proposal_ids).order_by("id")
+        
         return Response(
-            PurchaseProposalSerializer(proposal_full).data,
+            PurchaseProposalSerializer(proposals_full, many=True).data,
             status=status.HTTP_201_CREATED,
         )
 
@@ -199,4 +209,56 @@ class PurchaseProposalStatusView(APIView):
                 status=status.HTTP_404_NOT_FOUND,
             )
         return Response(PurchaseProposalStatusSerializer(proposal).data, status=status.HTTP_200_OK)
+
+
+import zipfile
+from io import BytesIO
+from django.http import HttpResponse
+from purchases.services.pdf_generation import generate_proposal_pdf
+
+class ExportProposalPDFView(APIView):
+    """
+    GET /api/v1/purchase-proposals/export/pdf/?ids=1,2,3
+    Downloads PDFs for the given proposal IDs.
+    Returns a single PDF if one ID is provided, or a ZIP archive if multiple are provided.
+    """
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        ids_param = request.query_params.get("ids", "")
+        if not ids_param:
+            return Response({"detail": "No proposal IDs provided. Use ?ids=1,2,3"}, status=status.HTTP_400_BAD_REQUEST)
+        
+        try:
+            proposal_ids = [int(i.strip()) for i in ids_param.split(",") if i.strip()]
+        except ValueError:
+            return Response({"detail": "Invalid IDs format."}, status=status.HTTP_400_BAD_REQUEST)
+            
+        proposals = PurchaseProposal.objects.prefetch_related("items").filter(pk__in=proposal_ids)
+        if not proposals.exists():
+            return Response({"detail": "No proposals found for the given IDs."}, status=status.HTTP_404_NOT_FOUND)
+
+        if len(proposals) == 1:
+            proposal = proposals.first()
+            pdf_bytes = generate_proposal_pdf(proposal)
+            response = HttpResponse(pdf_bytes, content_type='application/pdf')
+            filename = f"purchase_proposal_{proposal.pk}.pdf"
+            response['Content-Disposition'] = f'attachment; filename="{filename}"'
+            return response
+            
+        else:
+            zip_buffer = BytesIO()
+            with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zip_file:
+                for proposal in proposals:
+                    pdf_bytes = generate_proposal_pdf(proposal)
+                    first_item = proposal.items.first()
+                    supplier = first_item.ware_house_name if first_item and first_item.ware_house_name else "Unknown_Supplier"
+                    safe_supplier = "".join([c if c.isalnum() else "_" for c in supplier])
+                    filename = f"proposal_{proposal.pk}_{safe_supplier}.pdf"
+                    zip_file.writestr(filename, pdf_bytes)
+            
+            zip_buffer.seek(0)
+            response = HttpResponse(zip_buffer.getvalue(), content_type='application/zip')
+            response['Content-Disposition'] = 'attachment; filename="purchase_proposals.zip"'
+            return response
 

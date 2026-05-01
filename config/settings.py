@@ -34,6 +34,19 @@ ALLOWED_HOSTS = ["*"] # Allow all hosts for easy cloud testing/demo
 CORS_ALLOWED_ORIGINS = [
     "https://pharmacio-web.onrender.com",
     "http://localhost:3000", # for flutter web dev
+    "https://ph-web-7x1.pages.dev",
+]
+
+from corsheaders.defaults import default_headers
+
+CORS_ALLOW_HEADERS = list(default_headers) + [
+    "accept-timezone",
+]
+
+CSRF_TRUSTED_ORIGINS = [
+    "https://api.35.228.22.79.nip.io",
+    "https://pharmacio-web.onrender.com",
+    "https://ph-web-7x1.pages.dev",
 ]
 
 
@@ -235,3 +248,6 @@ AI_ENGINE_API_KEY = os.getenv("AI_ENGINE_API_KEY", "")
 INTERNAL_SERVICE_TOKEN = os.getenv("INTERNAL_SERVICE_TOKEN", "")
 
 OCR_ENGINE_TIMEOUT_SECONDS = int(os.getenv("OCR_ENGINE_TIMEOUT_SECONDS", "30"))
+
+# Pharmacy Name
+PHARMACY_NAME = os.getenv("PHARMACY_NAME", "Pharmacio")
