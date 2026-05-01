@@ -1131,7 +1131,8 @@
                 "compare",
                 ""
               ]
-            }
+            },
+            "description": "Compares offers or extracts from a single file. Automatically includes missing low-stock inventory with status='not_found'."
           }
         },
         {
@@ -1160,7 +1161,8 @@
                 "generate",
                 ""
               ]
-            }
+            },
+            "description": "Generates purchase proposals from OCR results. Now returns an ARRAY of proposals (grouped by supplier)."
           }
         },
         {
@@ -1283,6 +1285,36 @@
               ]
             }
           }
+        },
+        {
+          "name": "Export Proposal PDF/ZIP",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/purchase-proposals/export/pdf/?ids=1",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "purchase-proposals",
+                "export",
+                "pdf",
+                ""
+              ],
+              "query": [
+                {
+                  "key": "ids",
+                  "value": "1",
+                  "description": "Comma-separated list of proposal IDs. 1 ID = PDF, Multiple IDs = ZIP"
+                }
+              ]
+            },
+            "description": "Downloads the generated purchase proposal(s). Single ID returns a PDF, multiple IDs return a ZIP file."
+          },
+          "response": []
         }
       ]
     },

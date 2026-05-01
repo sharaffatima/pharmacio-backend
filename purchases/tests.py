@@ -143,7 +143,7 @@ class ProposalGenerationServiceTest(TestCase):
         _make_item(result_a, "Paracetamol", "PharmaA", "2.50")
         _make_item(result_a, "Ibuprofen", "PharmaA", "3.75")
 
-        proposal = generate_proposal([result_a.id], created_by=self.user)
+        proposal = generate_proposal([result_a.id], created_by=self.user)[0]
 
         self.assertEqual(proposal.total_cost, Decimal("6.25"))
         self.assertEqual(proposal.items.count(), 2)
@@ -154,7 +154,7 @@ class ProposalGenerationServiceTest(TestCase):
         _make_item(result_a, "Paracetamol", "PharmaA", "5.00")
         _make_item(result_b, "Paracetamol", "PharmaA", "2.00")
 
-        proposal = generate_proposal([result_a.id, result_b.id], created_by=self.user)
+        proposal = generate_proposal([result_a.id, result_b.id], created_by=self.user)[0]
 
         item = proposal.items.first()
         self.assertEqual(item.unit_price, Decimal("2.00"))
@@ -164,7 +164,7 @@ class ProposalGenerationServiceTest(TestCase):
         result_a = _make_ocr_result(self.file, "WarehouseA")
         _make_item(result_a, "Amoxicillin", "PharmaA", "7.00")
 
-        proposal = generate_proposal([result_a.id], created_by=self.user)
+        proposal = generate_proposal([result_a.id], created_by=self.user)[0]
 
         self.assertEqual(proposal.items.first().proposed_quantity, 1)
 
@@ -178,7 +178,7 @@ class ProposalGenerationServiceTest(TestCase):
         result_a = _make_ocr_result(self.file, "WarehouseA")
         _make_item(result_a, "Paracetamol", "PharmaA", "2.50")
 
-        proposal = generate_proposal([result_a.id], created_by=self.user)
+        proposal = generate_proposal([result_a.id], created_by=self.user)[0]
 
         self.assertEqual(proposal.status, "pending")
         self.assertEqual(proposal.created_by, self.user)
@@ -187,7 +187,7 @@ class ProposalGenerationServiceTest(TestCase):
         result_a = _make_ocr_result(self.file, "WarehouseA")
         _make_item(result_a, "Paracetamol", "PharmaA", "4.99")
 
-        proposal = generate_proposal([result_a.id], created_by=self.user)
+        proposal = generate_proposal([result_a.id], created_by=self.user)[0]
         item = proposal.items.first()
 
         self.assertEqual(item.line_total, item.unit_price * item.proposed_quantity)
@@ -260,9 +260,10 @@ class PurchaseProposalAPITest(TestCase):
 
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         data = response.json()
-        self.assertEqual(data["status"], "pending")
-        self.assertEqual(len(data["items"]), 1)
-        self.assertEqual(data["total_cost"], "2.50")
+        self.assertEqual(len(data), 1)
+        self.assertEqual(data[0]["status"], "pending")
+        self.assertEqual(len(data[0]["items"]), 1)
+        self.assertEqual(data[0]["total_cost"], "2.50")
 
     def test_generate_with_no_items_returns_400(self):
         result_a = _make_ocr_result(self.file, "WarehouseA")
@@ -308,7 +309,7 @@ class PurchaseProposalAPITest(TestCase):
     def test_detail_returns_proposal(self):
         result_a = _make_ocr_result(self.file, "WarehouseA")
         _make_item(result_a, "Paracetamol", "PharmaA", "2.50")
-        proposal = generate_proposal([result_a.id], created_by=self.user)
+        proposal = generate_proposal([result_a.id], created_by=self.user)[0]
 
         response = self.client.get(f"/api/v1/purchase-proposals/{proposal.id}/")
 
@@ -329,7 +330,7 @@ class PurchaseProposalAPITest(TestCase):
     def test_approve_requires_permission(self):
         result_a = _make_ocr_result(self.file, "WarehouseA")
         _make_item(result_a, "Paracetamol", "PharmaA", "2.50")
-        proposal = generate_proposal([result_a.id], created_by=self.user)
+        proposal = generate_proposal([result_a.id], created_by=self.user)[0]
 
         response = self.client.post(f"/api/v1/purchase-proposals/{proposal.id}/approve/")
 
@@ -338,7 +339,7 @@ class PurchaseProposalAPITest(TestCase):
     def test_approve_pending_proposal(self):
         result_a = _make_ocr_result(self.file, "WarehouseA")
         _make_item(result_a, "Paracetamol", "PharmaA", "2.50")
-        proposal = generate_proposal([result_a.id], created_by=self.user)
+        proposal = generate_proposal([result_a.id], created_by=self.user)[0]
         self.client.force_authenticate(user=self.approver)
 
         response = self.client.post(f"/api/v1/purchase-proposals/{proposal.id}/approve/")
@@ -362,7 +363,7 @@ class PurchaseProposalAPITest(TestCase):
     def test_approve_non_pending_proposal_rejected(self):
         result_a = _make_ocr_result(self.file, "WarehouseA")
         _make_item(result_a, "Paracetamol", "PharmaA", "2.50")
-        proposal = generate_proposal([result_a.id], created_by=self.user)
+        proposal = generate_proposal([result_a.id], created_by=self.user)[0]
         proposal.status = "rejected"
         proposal.save(update_fields=["status", "updated_at"])
         self.client.force_authenticate(user=self.approver)
@@ -374,7 +375,7 @@ class PurchaseProposalAPITest(TestCase):
     def test_reject_pending_proposal(self):
         result_a = _make_ocr_result(self.file, "WarehouseA")
         _make_item(result_a, "Paracetamol", "PharmaA", "2.50")
-        proposal = generate_proposal([result_a.id], created_by=self.user)
+        proposal = generate_proposal([result_a.id], created_by=self.user)[0]
         self.client.force_authenticate(user=self.approver)
 
         response = self.client.post(f"/api/v1/purchase-proposals/{proposal.id}/reject/")
@@ -393,7 +394,7 @@ class PurchaseProposalAPITest(TestCase):
     def test_reject_requires_permission(self):
         result_a = _make_ocr_result(self.file, "WarehouseA")
         _make_item(result_a, "Paracetamol", "PharmaA", "2.50")
-        proposal = generate_proposal([result_a.id], created_by=self.user)
+        proposal = generate_proposal([result_a.id], created_by=self.user)[0]
 
         response = self.client.post(f"/api/v1/purchase-proposals/{proposal.id}/reject/")
 
@@ -402,7 +403,7 @@ class PurchaseProposalAPITest(TestCase):
     def test_status_endpoint_returns_current_status(self):
         result_a = _make_ocr_result(self.file, "WarehouseA")
         _make_item(result_a, "Paracetamol", "PharmaA", "2.50")
-        proposal = generate_proposal([result_a.id], created_by=self.user)
+        proposal = generate_proposal([result_a.id], created_by=self.user)[0]
         self.client.force_authenticate(user=self.approver)
         self.client.post(f"/api/v1/purchase-proposals/{proposal.id}/approve/")
 

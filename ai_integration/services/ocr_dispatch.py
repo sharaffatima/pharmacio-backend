@@ -1,7 +1,9 @@
 import logging
 import requests
 from django.conf import settings
+from django.db.models import F
 from ai_integration.models import OCRJob
+from inventory.models import Inventory
 
 logger = logging.getLogger(__name__)
 
@@ -13,12 +15,19 @@ class OCRDispatchError(Exception):
 
 def dispatch_to_ocr_engine(*, job: OCRJob) -> None:
     """
-    Sends {job_id, file_reference} to the OCR engine.
+    Sends {job_id, file_reference, target_items} to the OCR engine.
     Raises OCRDispatchError on failure.
     """
+    low_stock_items = Inventory.objects.filter(quantity_on_hand__lte=F('min_threshold'))
+    target_items = [
+        {"product_name": item.product_name, "strength": item.strength}
+        for item in low_stock_items
+    ]
+
     payload = {
         "job_id": str(job.job_id),
         "file_reference": job.file.s3_key,
+        "target_items": target_items,
     }
     
     logger.info(f"Dispatching job {job.job_id} to OCR engine at {settings.OCR_ENGINE_PROCESS_URL}")
