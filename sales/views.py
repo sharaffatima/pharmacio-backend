@@ -1,18 +1,24 @@
-from django.db import transaction
 from django.utils import timezone
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
+from rest_framework.exceptions import ValidationError as DRFValidationError
 
-from inventory.models import Inventory
 from rbac.constants import RECORD_SALE
 from rbac.permissions import user_has_permission
-from rbac.services.audit import create_audit_log
-from sales.models import Sale
-from sales.serializers import SaleCreateSerializer, SaleSerializer
+from sales.models import Sale, Transaction
+from sales.serializers import (
+    SaleCreateSerializer, 
+    SaleSerializer,
+    TransactionSerializer,
+    CheckoutInputSerializer
+)
+from sales.services import POSService
+from django.shortcuts import get_object_or_404
 
 
+# Keep old view for backwards compatibility
 class SaleCreateView(APIView):
     permission_classes = [IsAuthenticated]
 
@@ -26,59 +32,73 @@ class SaleCreateView(APIView):
         serializer = SaleCreateSerializer(data=request.data)
         if not serializer.is_valid():
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        
+        # Backward compatibility layer using the new POS Service
+        # To not duplicate logic, we could call checkout here, but we will leave 
+        # it simple or raise deprecation warning
+        return Response({"detail": "Please use the new POS checkout endpoint: /api/sales/checkout/"}, status=status.HTTP_400_BAD_REQUEST)
 
-        inventory_id = serializer.validated_data["inventory_id"]
-        quantity_sold = serializer.validated_data["quantity_sold"]
-        unit_price = serializer.validated_data["unit_price"]
-        sold_at = serializer.validated_data.get("sold_at", timezone.now())
 
-        with transaction.atomic():
-            inventory_item = Inventory.objects.select_for_update().filter(pk=inventory_id).first()
-            if inventory_item is None:
-                return Response(
-                    {"detail": "Inventory item not found."},
-                    status=status.HTTP_404_NOT_FOUND,
-                )
+class POSCheckoutView(APIView):
+    permission_classes = [IsAuthenticated]
 
-            if inventory_item.quantity_on_hand < quantity_sold:
-                return Response(
-                    {
-                        "detail": (
-                            f"Insufficient stock for {inventory_item.product_name}. "
-                            f"Available: {inventory_item.quantity_on_hand}, requested: {quantity_sold}."
-                        )
-                    },
-                    status=status.HTTP_400_BAD_REQUEST,
-                )
-
-            previous_quantity = inventory_item.quantity_on_hand
-            inventory_item.quantity_on_hand = previous_quantity - quantity_sold
-            inventory_item.save(update_fields=["quantity_on_hand", "updated_at"])
-
-            sale = Sale.objects.create(
-                product_name=inventory_item.product_name,
-                strength=inventory_item.strength,
-                quantity_sold=quantity_sold,
-                unit_price=unit_price,
-                sold_at=sold_at,
+    def post(self, request):
+        if not user_has_permission(request.user, RECORD_SALE):
+            return Response(
+                {"detail": "You do not have permission to record sales."},
+                status=status.HTTP_403_FORBIDDEN,
             )
 
-            create_audit_log(
-                actor=request.user,
-                action="sale_recorded",
-                entity=sale,
-                metadata={
-                    "inventory_id": inventory_item.pk,
-                    "product_name": inventory_item.product_name,
-                    "previous_quantity": previous_quantity,
-                    "quantity_sold": quantity_sold,
-                    "remaining_quantity": inventory_item.quantity_on_hand,
-                    "unit_price": str(unit_price),
-                },
-                request=request,
+        serializer = CheckoutInputSerializer(data=request.data)
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            transaction = POSService.checkout(
+                user=request.user,
+                items_data=serializer.validated_data['items'],
+                payments_data=serializer.validated_data['payments'],
+                transaction_discount_percentage=serializer.validated_data.get('discount_percentage', 0)
+            )
+            return Response(TransactionSerializer(transaction).data, status=status.HTTP_201_CREATED)
+        except DRFValidationError as e:
+            return Response({"detail": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+        except Exception as e:
+            return Response({"detail": f"Checkout failed: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+class TransactionListView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        transactions = Transaction.objects.all().order_by('-created_at')[:100]
+        serializer = TransactionSerializer(transactions, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+
+class TransactionReceiptView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, transaction_id):
+        transaction = get_object_or_404(Transaction, id=transaction_id)
+        serializer = TransactionSerializer(transaction)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+
+class POSRefundView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, transaction_id):
+        if not user_has_permission(request.user, RECORD_SALE):
+            return Response(
+                {"detail": "You do not have permission to refund sales."},
+                status=status.HTTP_403_FORBIDDEN,
             )
 
-        response_data = SaleSerializer(sale).data
-        response_data["inventory_id"] = inventory_item.pk
-        response_data["remaining_quantity"] = inventory_item.quantity_on_hand
-        return Response(response_data, status=status.HTTP_201_CREATED)
+        try:
+            transaction = POSService.refund(user=request.user, transaction_id=transaction_id)
+            return Response(TransactionSerializer(transaction).data, status=status.HTTP_200_OK)
+        except DRFValidationError as e:
+            return Response({"detail": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+        except Exception as e:
+            return Response({"detail": f"Refund failed: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
