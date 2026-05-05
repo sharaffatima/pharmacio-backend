@@ -6,8 +6,8 @@ from django.db import transaction
 from rest_framework.exceptions import ValidationError
 
 from inventory.models import Inventory
-from sales.models import Transaction, TransactionItem, Payment, TransactionStatus
-from rbac.models import AuditLog
+from pos.models import Transaction, TransactionItem, Payment, TransactionStatus
+from rbac.services.audit import create_audit_log
 
 
 class POSService:
@@ -105,12 +105,11 @@ class POSService:
         pos_txn.save(update_fields=['subtotal', 'total_amount', 'updated_at'])
 
         # 5. Log action for Dashboard
-        AuditLog.objects.create(
+        create_audit_log(
             actor=user,
             action="sale_recorded",
-            resource="Transaction",
-            resource_id=str(pos_txn.id),
-            details={"receipt_number": pos_txn.receipt_number, "total": str(total_amount)}
+            entity=pos_txn,
+            metadata={"receipt_number": pos_txn.receipt_number, "total": str(total_amount)}
         )
 
         return pos_txn
@@ -136,12 +135,11 @@ class POSService:
         pos_txn.save(update_fields=['status', 'updated_at'])
 
         # Log action for Dashboard
-        AuditLog.objects.create(
+        create_audit_log(
             actor=user,
             action="refund_processed",
-            resource="Transaction",
-            resource_id=str(pos_txn.id),
-            details={"receipt_number": pos_txn.receipt_number, "total": str(pos_txn.total_amount)}
+            entity=pos_txn,
+            metadata={"receipt_number": pos_txn.receipt_number, "total": str(pos_txn.total_amount)}
         )
 
         return pos_txn

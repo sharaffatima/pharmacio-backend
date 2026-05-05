@@ -4,39 +4,16 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework.exceptions import ValidationError as DRFValidationError
+from django.shortcuts import get_object_or_404
 
 from rbac.constants import RECORD_SALE
 from rbac.permissions import user_has_permission
-from sales.models import Sale, Transaction
-from sales.serializers import (
-    SaleCreateSerializer, 
-    SaleSerializer,
+from pos.models import Transaction
+from pos.serializers import (
     TransactionSerializer,
     CheckoutInputSerializer
 )
-from sales.services import POSService
-from django.shortcuts import get_object_or_404
-
-
-# Keep old view for backwards compatibility
-class SaleCreateView(APIView):
-    permission_classes = [IsAuthenticated]
-
-    def post(self, request):
-        if not user_has_permission(request.user, RECORD_SALE):
-            return Response(
-                {"detail": "You do not have permission to record sales."},
-                status=status.HTTP_403_FORBIDDEN,
-            )
-
-        serializer = SaleCreateSerializer(data=request.data)
-        if not serializer.is_valid():
-            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-        
-        # Backward compatibility layer using the new POS Service
-        # To not duplicate logic, we could call checkout here, but we will leave 
-        # it simple or raise deprecation warning
-        return Response({"detail": "Please use the new POS checkout endpoint: /api/sales/checkout/"}, status=status.HTTP_400_BAD_REQUEST)
+from pos.services import POSService
 
 
 class POSCheckoutView(APIView):
@@ -45,7 +22,7 @@ class POSCheckoutView(APIView):
     def post(self, request):
         if not user_has_permission(request.user, RECORD_SALE):
             return Response(
-                {"detail": "You do not have permission to record sales."},
+                {"detail": "You do not have permission to create POS transactions."},
                 status=status.HTTP_403_FORBIDDEN,
             )
 
@@ -91,7 +68,7 @@ class POSRefundView(APIView):
     def post(self, request, transaction_id):
         if not user_has_permission(request.user, RECORD_SALE):
             return Response(
-                {"detail": "You do not have permission to refund sales."},
+                {"detail": "You do not have permission to refund POS transactions."},
                 status=status.HTTP_403_FORBIDDEN,
             )
 

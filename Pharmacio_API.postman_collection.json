@@ -1052,39 +1052,6 @@
       ]
     },
     {
-      "name": "Sales",
-      "item": [
-        {
-          "name": "Record Sale",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"inventory_id\": 1,\n  \"quantity_sold\": 2,\n  \"unit_price\": \"8.50\",\n  \"sold_at\": \"2026-03-28T10:30:00Z\"\n}"
-            },
-            "url": {
-              "raw": "{{base_url}}/api/v1/sales/",
-              "host": [
-                "{{base_url}}"
-              ],
-              "path": [
-                "api",
-                "v1",
-                "sales",
-                ""
-              ]
-            }
-          }
-        }
-      ]
-    },
-    {
       "name": "Purchase Proposals",
       "item": [
         {
@@ -1419,7 +1386,7 @@
       ]
     },
     {
-      "name": "Sales (POS)",
+      "name": "POS",
       "description": "Endpoints for the Point of Sale system",
       "item": [
         {
@@ -1437,9 +1404,9 @@
               "raw": "{\n    \"items\": [\n        {\n            \"inventory_id\": 1,\n            \"quantity\": 2,\n            \"unit_price\": \"15.00\",\n            \"discount_percentage\": \"0.00\"\n        }\n    ],\n    \"payments\": [\n        {\n            \"payment_method\": \"cash\",\n            \"amount_paid\": \"30.00\"\n        }\n    ],\n    \"discount_percentage\": \"0.00\"\n}"
             },
             "url": {
-              "raw": "{{base_url}}/api/sales/checkout/",
+              "raw": "{{base_url}}/api/v1/pos/checkout/",
               "host": ["{{base_url}}"],
-              "path": ["api", "sales", "checkout", ""]
+              "path": ["api", "v1", "pos", "checkout", ""]
             }
           }
         },
@@ -1449,9 +1416,9 @@
             "method": "GET",
             "header": [],
             "url": {
-              "raw": "{{base_url}}/api/sales/transactions/",
+              "raw": "{{base_url}}/api/v1/pos/transactions/",
               "host": ["{{base_url}}"],
-              "path": ["api", "sales", "transactions", ""]
+              "path": ["api", "v1", "pos", "transactions", ""]
             }
           }
         },
@@ -1461,9 +1428,9 @@
             "method": "GET",
             "header": [],
             "url": {
-              "raw": "{{base_url}}/api/sales/transactions/1/receipt/",
+              "raw": "{{base_url}}/api/v1/pos/transactions/1/receipt/",
               "host": ["{{base_url}}"],
-              "path": ["api", "sales", "transactions", "1", "receipt", ""]
+              "path": ["api", "v1", "pos", "transactions", "1", "receipt", ""]
             }
           }
         },
@@ -1473,9 +1440,9 @@
             "method": "POST",
             "header": [],
             "url": {
-              "raw": "{{base_url}}/api/sales/transactions/1/refund/",
+              "raw": "{{base_url}}/api/v1/pos/transactions/1/refund/",
               "host": ["{{base_url}}"],
-              "path": ["api", "sales", "transactions", "1", "refund", ""]
+              "path": ["api", "v1", "pos", "transactions", "1", "refund", ""]
             }
           }
         }
