@@ -129,6 +129,7 @@ class AuditLog(models.Model):
         ("inventory_adjusted", "Inventory Adjusted"),
         ("inventory_item_created", "Inventory Item Created"),
         ("sale_recorded", "Sale Recorded"),
+        ("refund_processed", "Refund Processed"),
         ("capital_changed", "Capital Changed"),
 
         # RBAC actions

@@ -54,7 +54,7 @@ rbac/              Roles, permissions, audit logging
 files/             File upload, storage adapter (local / S3)
 ai_integration/    OCR job dispatch, callback, result storage
 inventory/         Inventory tracking
-sales/             Sales history
+pos/               Point of sale checkout, transactions, receipts, and refunds
 purchases/         Purchase proposals & approval workflow
 notifications/     Stock alerts & notifications
 ```

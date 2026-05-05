@@ -70,7 +70,7 @@ INSTALLED_APPS = [
     "files",
     "ai_integration",
     "inventory",
-    "sales",
+    "pos",
     "purchases",
     "notifications",
 ]
