@@ -4,10 +4,15 @@ from rest_framework.test import APIClient
 from rest_framework import status
 from django.contrib.auth import get_user_model
 from unittest.mock import patch, MagicMock
+from io import BytesIO
+import importlib.util
 from .models import File
-from rbac.models import Permission, Role, UserRole
+from ai_integration.models import OCRJob
+from inventory.models import Inventory
+from rbac.models import AuditLog, Permission, Role, UserRole
 
 User = get_user_model()
+OPENPYXL_AVAILABLE = importlib.util.find_spec("openpyxl") is not None
 
 
 class FileUploadViewTests(TestCase):
@@ -120,6 +125,245 @@ class FileUploadViewTests(TestCase):
         
         self.assertEqual(response.status_code, status.HTTP_415_UNSUPPORTED_MEDIA_TYPE)
         self.assertIn('Unsupported file type', response.json()['detail'])
+
+    @override_settings(
+        FILE_STORAGE_BACKEND='local',
+        MEDIA_ROOT='/tmp',
+    )
+    @patch('files.views.dispatch_ocr_job.delay')
+    @patch('files.views.get_storage_adapter')
+    def test_csv_upload_imports_opening_balance_without_ocr(
+        self, mock_storage_adapter, mock_dispatch_task
+    ):
+        mock_storage_instance = MagicMock()
+        mock_storage_adapter.return_value = mock_storage_instance
+
+        file = SimpleUploadedFile(
+            "opening_balance.csv",
+            (
+                b"product,dosage,qty,reorder_level\n"
+                b"Aspirin,100mg,50,10\n"
+                b"Ibuprofen,400mg,20,5\n"
+            ),
+            content_type="text/csv"
+        )
+
+        response = self.client.post(
+            '/api/v1/offers/upload/',
+            {'file': file, 'ware_house_name': 'Main Pharmacy'},
+            format='multipart'
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(response.json()['status'], 'completed')
+        self.assertEqual(
+            response.json()['message'],
+            'Inventory import completed successfully',
+        )
+        self.assertEqual(
+            response.json()['import_result'],
+            {
+                'status': 'completed',
+                'total_rows': 2,
+                'created_count': 2,
+                'updated_count': 0,
+            },
+        )
+        self.assertTrue(
+            Inventory.objects.filter(
+                product_name='Aspirin',
+                strength='100mg',
+                quantity_on_hand=50,
+                min_threshold=10,
+            ).exists()
+        )
+        self.assertEqual(OCRJob.objects.count(), 0)
+        mock_dispatch_task.assert_not_called()
+        mock_storage_instance.upload_fileobj.assert_called_once()
+        self.assertTrue(
+            AuditLog.objects.filter(action='opening_balance_imported').exists()
+        )
+
+    @override_settings(
+        FILE_STORAGE_BACKEND='local',
+        MEDIA_ROOT='/tmp',
+    )
+    @patch('files.views.dispatch_ocr_job.delay')
+    @patch('files.views.get_storage_adapter')
+    def test_csv_upload_updates_existing_inventory_item(
+        self, mock_storage_adapter, mock_dispatch_task
+    ):
+        Inventory.objects.create(
+            product_name='Paracetamol',
+            strength='500mg',
+            quantity_on_hand=3,
+            min_threshold=1,
+        )
+        mock_storage_instance = MagicMock()
+        mock_storage_adapter.return_value = mock_storage_instance
+
+        file = SimpleUploadedFile(
+            "opening_balance.csv",
+            b"medicine,strength,stock,threshold\nParacetamol,500mg,99,12\n",
+            content_type="text/csv"
+        )
+
+        response = self.client.post(
+            '/api/v1/offers/upload/',
+            {'file': file},
+            format='multipart'
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(response.json()['import_result']['created_count'], 0)
+        self.assertEqual(response.json()['import_result']['updated_count'], 1)
+        item = Inventory.objects.get(product_name='Paracetamol', strength='500mg')
+        self.assertEqual(item.quantity_on_hand, 99)
+        self.assertEqual(item.min_threshold, 12)
+        self.assertEqual(
+            Inventory.objects.filter(product_name='Paracetamol', strength='500mg').count(),
+            1,
+        )
+        mock_dispatch_task.assert_not_called()
+
+    @override_settings(
+        FILE_STORAGE_BACKEND='local',
+        MEDIA_ROOT='/tmp',
+    )
+    @patch('files.views.get_storage_adapter')
+    def test_csv_upload_defaults_missing_threshold_to_zero(self, mock_storage_adapter):
+        mock_storage_instance = MagicMock()
+        mock_storage_adapter.return_value = mock_storage_instance
+
+        file = SimpleUploadedFile(
+            "opening_balance.csv",
+            b"name,strength,current_stock\nCetirizine,10mg,18\n",
+            content_type="text/csv"
+        )
+
+        response = self.client.post(
+            '/api/v1/offers/upload/',
+            {'file': file},
+            format='multipart'
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        item = Inventory.objects.get(product_name='Cetirizine', strength='10mg')
+        self.assertEqual(item.quantity_on_hand, 18)
+        self.assertEqual(item.min_threshold, 0)
+
+    @override_settings(
+        FILE_STORAGE_BACKEND='local',
+        MEDIA_ROOT='/tmp',
+    )
+    @patch('files.views.dispatch_ocr_job.delay')
+    @patch('files.views.get_storage_adapter')
+    def test_invalid_csv_upload_rolls_back_and_does_not_store_file(
+        self, mock_storage_adapter, mock_dispatch_task
+    ):
+        Inventory.objects.create(
+            product_name='Existing',
+            strength='10mg',
+            quantity_on_hand=7,
+            min_threshold=2,
+        )
+        mock_storage_instance = MagicMock()
+        mock_storage_adapter.return_value = mock_storage_instance
+
+        file = SimpleUploadedFile(
+            "bad_opening_balance.csv",
+            (
+                b"product_name,strength,quantity_on_hand,min_threshold\n"
+                b"Valid,1mg,5,1\n"
+                b"Invalid,2mg,-4,1\n"
+            ),
+            content_type="text/csv"
+        )
+
+        response = self.client.post(
+            '/api/v1/offers/upload/',
+            {'file': file},
+            format='multipart'
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn('rows', response.json())
+        self.assertFalse(Inventory.objects.filter(product_name='Valid').exists())
+        existing = Inventory.objects.get(product_name='Existing', strength='10mg')
+        self.assertEqual(existing.quantity_on_hand, 7)
+        self.assertFalse(File.objects.filter(original_filename='bad_opening_balance.csv').exists())
+        mock_storage_instance.upload_fileobj.assert_not_called()
+        mock_dispatch_task.assert_not_called()
+
+    def test_duplicate_csv_rows_are_rejected(self):
+        file = SimpleUploadedFile(
+            "duplicates.csv",
+            (
+                b"product_name,strength,quantity_on_hand\n"
+                b"Aspirin,100mg,5\n"
+                b"aspirin,100mg,6\n"
+            ),
+            content_type="text/csv"
+        )
+
+        response = self.client.post(
+            '/api/v1/offers/upload/',
+            {'file': file},
+            format='multipart'
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn('Duplicate product/strength', str(response.json()))
+
+    @override_settings(
+        FILE_STORAGE_BACKEND='local',
+        MEDIA_ROOT='/tmp',
+    )
+    @patch('files.views.dispatch_ocr_job.delay')
+    @patch('files.views.get_storage_adapter')
+    def test_xlsx_upload_imports_opening_balance_without_ocr(
+        self, mock_storage_adapter, mock_dispatch_task
+    ):
+        if not OPENPYXL_AVAILABLE:
+            self.skipTest("openpyxl is not installed")
+
+        from openpyxl import Workbook
+
+        workbook = Workbook()
+        worksheet = workbook.active
+        worksheet.append(["drug_name", "dose", "opening_stock", "min_stock"])
+        worksheet.append(["Amoxicillin", "250mg", 30, 6])
+        content = BytesIO()
+        workbook.save(content)
+        content.seek(0)
+
+        mock_storage_instance = MagicMock()
+        mock_storage_adapter.return_value = mock_storage_instance
+
+        file = SimpleUploadedFile(
+            "opening_balance.xlsx",
+            content.read(),
+            content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        )
+
+        response = self.client.post(
+            '/api/v1/offers/upload/',
+            {'file': file},
+            format='multipart'
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(response.json()['import_result']['total_rows'], 1)
+        self.assertTrue(
+            Inventory.objects.filter(
+                product_name='Amoxicillin',
+                strength='250mg',
+                quantity_on_hand=30,
+                min_threshold=6,
+            ).exists()
+        )
+        self.assertEqual(OCRJob.objects.count(), 0)
+        mock_dispatch_task.assert_not_called()
 
     def test_file_upload_no_file_provided(self):
         """Test upload without providing a file"""
@@ -355,6 +599,24 @@ class UploadStatusViewTests(TestCase):
             
             self.assertEqual(response.status_code, status.HTTP_200_OK)
             self.assertEqual(response.json()['message'], expected_message)
+
+    def test_upload_status_message_for_completed_opening_balance_file(self):
+        file = File.objects.create(
+            s3_key='uploads/1/opening-balance.csv',
+            original_filename='opening-balance.csv',
+            ware_house_name='Warehouse A',
+            status='completed'
+        )
+
+        response = self.client.get(
+            f'/api/v1/offers/uploads/{file.id}/status/'
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(
+            response.json()['message'],
+            'Inventory import completed successfully',
+        )
 
 
 class FileUploadCreatesOCRJobTests(TestCase):

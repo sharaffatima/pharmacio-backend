@@ -145,6 +145,7 @@ class AuditLog(models.Model):
         
         # File actions
         ("file_uploaded", "File Uploaded"),
+        ("opening_balance_imported", "Opening Balance Imported"),
         
         # OCR actions
         ("ocr_manual_dispatch", "OCR Manual Dispatch"),
