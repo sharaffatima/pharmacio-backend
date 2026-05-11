@@ -19,6 +19,7 @@ from ai_integration.tasks import dispatch_ocr_job
 from inventory.services.opening_balance_import import (
     apply_opening_balance_rows,
     parse_opening_balance,
+    validate_opening_balance_barcode_conflicts,
 )
 from rbac.constants import UPLOAD_OFFER_FILES, VIEW_OFFER_FILES
 from rbac.permissions import user_has_permission
@@ -78,6 +79,7 @@ class FileUploadView(APIView):
             opening_balance_rows = None
             if ext in opening_balance_extensions:
                 opening_balance_rows = parse_opening_balance(file_obj, ext)
+                validate_opening_balance_barcode_conflicts(opening_balance_rows)
 
             storage = get_storage_adapter()
             storage.upload_fileobj(file_obj, storage_key)

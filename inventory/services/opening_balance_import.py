@@ -9,7 +9,7 @@ from typing import Iterable
 from django.db import transaction
 from rest_framework import serializers
 
-from inventory.models import Inventory
+from inventory.models import Inventory, InventoryBarcode
 
 
 HEADER_ALIASES = {
@@ -30,6 +30,15 @@ HEADER_ALIASES = {
         "reorder_level",
         "min_stock",
     },
+    "barcode": {
+        "barcode",
+        "bar_code",
+        "ean",
+        "ean_13",
+        "gtin",
+        "product_code",
+        "scan_code",
+    },
 }
 
 REQUIRED_FIELDS = ("product_name", "strength", "quantity_on_hand")
@@ -42,6 +51,7 @@ class OpeningBalanceRow:
     strength: str
     quantity_on_hand: int
     min_threshold: int
+    barcode: str = ""
 
 
 def import_opening_balance(file_obj, extension: str) -> dict:
@@ -52,6 +62,7 @@ def import_opening_balance(file_obj, extension: str) -> dict:
 def apply_opening_balance_rows(rows: list[OpeningBalanceRow]) -> dict:
     created_count = 0
     updated_count = 0
+    barcode_count = 0
 
     with transaction.atomic():
         for row in rows:
@@ -61,7 +72,7 @@ def apply_opening_balance_rows(rows: list[OpeningBalanceRow]) -> dict:
                 .first()
             )
             if item is None:
-                Inventory.objects.create(
+                item = Inventory.objects.create(
                     product_name=row.product_name,
                     strength=row.strength,
                     quantity_on_hand=row.quantity_on_hand,
@@ -74,12 +85,73 @@ def apply_opening_balance_rows(rows: list[OpeningBalanceRow]) -> dict:
                 item.save(update_fields=["quantity_on_hand", "min_threshold", "updated_at"])
                 updated_count += 1
 
+            if row.barcode:
+                barcode, created = InventoryBarcode.objects.get_or_create(
+                    barcode=row.barcode,
+                    defaults={
+                        "inventory_item": item,
+                        "is_primary": not InventoryBarcode.objects.filter(
+                            inventory_item=item
+                        ).exists(),
+                    },
+                )
+                if barcode.inventory_item_id != item.id:
+                    raise serializers.ValidationError(
+                        {
+                            "rows": [
+                                {
+                                    "row": row.row_number,
+                                    "errors": {
+                                        "barcode": [
+                                            "Barcode is already assigned to another inventory item."
+                                        ]
+                                    },
+                                }
+                            ]
+                        }
+                    )
+                if created:
+                    barcode_count += 1
+
     return {
         "status": "completed",
         "total_rows": len(rows),
         "created_count": created_count,
         "updated_count": updated_count,
+        "barcode_count": barcode_count,
     }
+
+
+def validate_opening_balance_barcode_conflicts(rows: list[OpeningBalanceRow]) -> None:
+    rows_by_barcode = {row.barcode: row for row in rows if row.barcode}
+    if not rows_by_barcode:
+        return
+
+    existing_barcodes = (
+        InventoryBarcode.objects.select_related("inventory_item")
+        .filter(barcode__in=rows_by_barcode.keys())
+    )
+    errors = []
+    for barcode in existing_barcodes:
+        row = rows_by_barcode[barcode.barcode]
+        item = barcode.inventory_item
+        if (
+            item.product_name.lower() != row.product_name.lower()
+            or item.strength.lower() != row.strength.lower()
+        ):
+            errors.append(
+                {
+                    "row": row.row_number,
+                    "errors": {
+                        "barcode": [
+                            "Barcode is already assigned to another inventory item."
+                        ]
+                    },
+                }
+            )
+
+    if errors:
+        raise serializers.ValidationError({"rows": errors})
 
 
 def parse_opening_balance(file_obj, extension: str) -> list[OpeningBalanceRow]:
@@ -159,6 +231,7 @@ def _validate_rows(raw_rows: Iterable[tuple[int, list]]) -> list[OpeningBalanceR
     errors = []
     rows = []
     seen_keys = {}
+    seen_barcodes = {}
 
     for row_number, raw_row in raw_rows:
         if row_number <= header_number or _is_blank_row(raw_row):
@@ -185,6 +258,22 @@ def _validate_rows(raw_rows: Iterable[tuple[int, list]]) -> list[OpeningBalanceR
             continue
 
         seen_keys[duplicate_key] = row_number
+
+        if row.barcode:
+            if row.barcode in seen_barcodes:
+                errors.append(
+                    {
+                        "row": row_number,
+                        "errors": {
+                            "barcode": [
+                                f"Duplicate barcode also found on row {seen_barcodes[row.barcode]}."
+                            ]
+                        },
+                    }
+                )
+                continue
+            seen_barcodes[row.barcode] = row_number
+
         rows.append(row)
 
     if errors:
@@ -229,6 +318,9 @@ def _build_row(row_number: int, raw_row: list, columns: dict[str, int]) -> Openi
     min_threshold = 0
     if "min_threshold" in columns:
         min_threshold = _optional_integer(raw_row, columns["min_threshold"], "min_threshold")
+    barcode = ""
+    if "barcode" in columns:
+        barcode = _optional_text(raw_row, columns["barcode"])
 
     field_errors = {}
     if quantity_on_hand < 0:
@@ -244,6 +336,7 @@ def _build_row(row_number: int, raw_row: list, columns: dict[str, int]) -> Openi
         strength=strength,
         quantity_on_hand=quantity_on_hand,
         min_threshold=min_threshold,
+        barcode=barcode,
     )
 
 
@@ -253,6 +346,11 @@ def _required_text(raw_row: list, index: int, field_name: str) -> str:
     if not text:
         raise serializers.ValidationError({field_name: [f"{field_name} is required."]})
     return text
+
+
+def _optional_text(raw_row: list, index: int) -> str:
+    value = _value_at(raw_row, index)
+    return "" if value is None else str(value).strip()
 
 
 def _required_integer(raw_row: list, index: int, field_name: str) -> int:

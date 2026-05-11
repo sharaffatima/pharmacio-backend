@@ -8,7 +8,7 @@ from io import BytesIO
 import importlib.util
 from .models import File
 from ai_integration.models import OCRJob
-from inventory.models import Inventory
+from inventory.models import Inventory, InventoryBarcode
 from rbac.models import AuditLog, Permission, Role, UserRole
 
 User = get_user_model()
@@ -167,6 +167,7 @@ class FileUploadViewTests(TestCase):
                 'total_rows': 2,
                 'created_count': 2,
                 'updated_count': 0,
+                'barcode_count': 0,
             },
         )
         self.assertTrue(
@@ -251,6 +252,99 @@ class FileUploadViewTests(TestCase):
         item = Inventory.objects.get(product_name='Cetirizine', strength='10mg')
         self.assertEqual(item.quantity_on_hand, 18)
         self.assertEqual(item.min_threshold, 0)
+
+    @override_settings(
+        FILE_STORAGE_BACKEND='local',
+        MEDIA_ROOT='/tmp',
+    )
+    @patch('files.views.get_storage_adapter')
+    def test_csv_upload_imports_optional_barcode(self, mock_storage_adapter):
+        mock_storage_instance = MagicMock()
+        mock_storage_adapter.return_value = mock_storage_instance
+
+        file = SimpleUploadedFile(
+            "opening_balance.csv",
+            (
+                b"product_name,strength,quantity_on_hand,barcode\n"
+                b"Aspirin,100mg,15,4012345678901\n"
+            ),
+            content_type="text/csv"
+        )
+
+        response = self.client.post(
+            '/api/v1/offers/upload/',
+            {'file': file},
+            format='multipart'
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(response.json()['import_result']['barcode_count'], 1)
+        item = Inventory.objects.get(product_name='Aspirin', strength='100mg')
+        barcode = InventoryBarcode.objects.get(barcode='4012345678901')
+        self.assertEqual(barcode.inventory_item, item)
+        self.assertTrue(barcode.is_primary)
+
+    def test_csv_upload_rejects_duplicate_barcodes(self):
+        file = SimpleUploadedFile(
+            "duplicate_barcodes.csv",
+            (
+                b"product_name,strength,quantity_on_hand,barcode\n"
+                b"Aspirin,100mg,5,4012345678901\n"
+                b"Ibuprofen,400mg,6,4012345678901\n"
+            ),
+            content_type="text/csv"
+        )
+
+        response = self.client.post(
+            '/api/v1/offers/upload/',
+            {'file': file},
+            format='multipart'
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn('Duplicate barcode', str(response.json()))
+
+    @override_settings(
+        FILE_STORAGE_BACKEND='local',
+        MEDIA_ROOT='/tmp',
+    )
+    @patch('files.views.get_storage_adapter')
+    def test_csv_upload_rejects_barcode_assigned_to_another_item(
+        self, mock_storage_adapter
+    ):
+        existing_item = Inventory.objects.create(
+            product_name='Paracetamol',
+            strength='500mg',
+            quantity_on_hand=20,
+            min_threshold=5,
+        )
+        InventoryBarcode.objects.create(
+            inventory_item=existing_item,
+            barcode='4012345678901',
+            is_primary=True,
+        )
+        mock_storage_instance = MagicMock()
+        mock_storage_adapter.return_value = mock_storage_instance
+
+        file = SimpleUploadedFile(
+            "conflicting_barcode.csv",
+            (
+                b"product_name,strength,quantity_on_hand,barcode\n"
+                b"Aspirin,100mg,15,4012345678901\n"
+            ),
+            content_type="text/csv"
+        )
+
+        response = self.client.post(
+            '/api/v1/offers/upload/',
+            {'file': file},
+            format='multipart'
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn('Barcode is already assigned', str(response.json()))
+        self.assertFalse(Inventory.objects.filter(product_name='Aspirin').exists())
+        mock_storage_instance.upload_fileobj.assert_not_called()
 
     @override_settings(
         FILE_STORAGE_BACKEND='local',

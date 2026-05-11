@@ -5,9 +5,108 @@ from django.test import TestCase
 from rest_framework import status
 from rest_framework.test import APIClient
 
-from inventory.models import Inventory
+from inventory.models import Inventory, InventoryBarcode
 from rbac.models import AuditLog, Permission, Role, UserRole
 from pos.models import Transaction, TransactionItem, Payment
+
+
+class POSBarcodeLookupApiTests(TestCase):
+    URL = "/api/v1/pos/barcode-lookup/"
+
+    def _make_user(self, username, email, with_permission=False):
+        user = get_user_model().objects.create_user(
+            username=username,
+            email=email,
+            password="pass1234",
+        )
+        if with_permission:
+            permission, _ = Permission.objects.get_or_create(
+                code="record_sale", defaults={"action": "create"}
+            )
+            role, _ = Role.objects.get_or_create(name="cashier")
+            role.permissions.add(permission)
+            UserRole.objects.get_or_create(user=user, role=role)
+        return user
+
+    def setUp(self):
+        self.inventory_item = Inventory.objects.create(
+            product_name="Aspirin",
+            strength="100mg",
+            quantity_on_hand=20,
+            min_threshold=5,
+        )
+        self.barcode = InventoryBarcode.objects.create(
+            inventory_item=self.inventory_item,
+            barcode="4012345678901",
+            is_primary=True,
+        )
+        self.permitted_user = self._make_user(
+            "barcode-user",
+            "barcode@example.com",
+            with_permission=True,
+        )
+        self.unpermitted_user = self._make_user(
+            "barcode-no-perm",
+            "barcode-no-perm@example.com",
+            with_permission=False,
+        )
+
+    def test_unauthenticated_returns_401(self):
+        response = APIClient().get(self.URL, {"barcode": self.barcode.barcode})
+
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+
+    def test_missing_permission_returns_403(self):
+        client = APIClient()
+        client.force_authenticate(user=self.unpermitted_user)
+
+        response = client.get(self.URL, {"barcode": self.barcode.barcode})
+
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_missing_barcode_returns_400(self):
+        client = APIClient()
+        client.force_authenticate(user=self.permitted_user)
+
+        response = client.get(self.URL)
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_unknown_barcode_returns_404(self):
+        client = APIClient()
+        client.force_authenticate(user=self.permitted_user)
+
+        response = client.get(self.URL, {"barcode": "0000000000000"})
+
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+
+    def test_lookup_returns_inventory_item_for_barcode(self):
+        client = APIClient()
+        client.force_authenticate(user=self.permitted_user)
+
+        response = client.get(self.URL, {"barcode": self.barcode.barcode})
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(
+            response.data,
+            {
+                "barcode": "4012345678901",
+                "inventory_id": self.inventory_item.id,
+                "product_name": "Aspirin",
+                "strength": "100mg",
+                "quantity_on_hand": 20,
+                "min_threshold": 5,
+            },
+        )
+
+    def test_lookup_trims_scanned_barcode(self):
+        client = APIClient()
+        client.force_authenticate(user=self.permitted_user)
+
+        response = client.get(self.URL, {"barcode": " 4012345678901 "})
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["inventory_id"], self.inventory_item.id)
 
 
 class POSCheckoutApiTests(TestCase):

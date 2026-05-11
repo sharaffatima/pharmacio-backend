@@ -1,10 +1,11 @@
 from django.db import transaction
+from django.db.models import Prefetch
 from rest_framework import generics, status
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from inventory.models import Inventory
+from inventory.models import Inventory, InventoryBarcode
 from inventory.serializers import (
     InventoryAdjustSerializer,
     InventoryCreateSerializer,
@@ -16,7 +17,13 @@ from rbac.services.audit import create_audit_log
 
 
 class InventoryListCreateView(generics.ListCreateAPIView):
-    queryset = Inventory.objects.all().order_by("product_name", "id")
+    queryset = (
+        Inventory.objects.prefetch_related(
+            Prefetch("barcodes", queryset=InventoryBarcode.objects.order_by("-is_primary", "id"))
+        )
+        .all()
+        .order_by("product_name", "id")
+    )
     permission_classes = [IsAuthenticated]
 
     def get_serializer_class(self):
@@ -43,6 +50,7 @@ class InventoryListCreateView(generics.ListCreateAPIView):
                     "strength": item.strength,
                     "quantity_on_hand": item.quantity_on_hand,
                     "min_threshold": item.min_threshold,
+                    "barcode": InventoryListSerializer(item).data["barcode"],
                 },
                 request=request,
             )

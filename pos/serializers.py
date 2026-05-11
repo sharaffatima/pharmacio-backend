@@ -1,5 +1,6 @@
 from rest_framework import serializers
 
+from inventory.models import InventoryBarcode
 from pos.models import Transaction, TransactionItem, Payment
 
 
@@ -44,3 +45,22 @@ class CheckoutInputSerializer(serializers.Serializer):
     items = CheckoutItemInputSerializer(many=True, allow_empty=False)
     payments = CheckoutPaymentInputSerializer(many=True, allow_empty=False)
     discount_percentage = serializers.DecimalField(max_digits=5, decimal_places=2, default=0.00, min_value=0, max_value=100)
+
+
+class BarcodeLookupSerializer(serializers.ModelSerializer):
+    inventory_id = serializers.IntegerField(source="inventory_item_id", read_only=True)
+    product_name = serializers.CharField(source="inventory_item.product_name", read_only=True)
+    strength = serializers.CharField(source="inventory_item.strength", read_only=True)
+    quantity_on_hand = serializers.IntegerField(source="inventory_item.quantity_on_hand", read_only=True)
+    min_threshold = serializers.IntegerField(source="inventory_item.min_threshold", read_only=True)
+
+    class Meta:
+        model = InventoryBarcode
+        fields = [
+            "barcode",
+            "inventory_id",
+            "product_name",
+            "strength",
+            "quantity_on_hand",
+            "min_threshold",
+        ]

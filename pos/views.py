@@ -6,10 +6,12 @@ from rest_framework.views import APIView
 from rest_framework.exceptions import ValidationError as DRFValidationError
 from django.shortcuts import get_object_or_404
 
+from inventory.models import InventoryBarcode
 from rbac.constants import RECORD_SALE
 from rbac.permissions import user_has_permission
 from pos.models import Transaction
 from pos.serializers import (
+    BarcodeLookupSerializer,
     TransactionSerializer,
     CheckoutInputSerializer
 )
@@ -42,6 +44,37 @@ class POSCheckoutView(APIView):
             return Response({"detail": str(e)}, status=status.HTTP_400_BAD_REQUEST)
         except Exception as e:
             return Response({"detail": f"Checkout failed: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+class POSBarcodeLookupView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        if not user_has_permission(request.user, RECORD_SALE):
+            return Response(
+                {"detail": "You do not have permission to use POS barcode lookup."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        barcode = request.query_params.get("barcode", "").strip()
+        if not barcode:
+            return Response(
+                {"detail": "barcode query parameter is required."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        barcode_record = (
+            InventoryBarcode.objects.select_related("inventory_item")
+            .filter(barcode=barcode)
+            .first()
+        )
+        if barcode_record is None:
+            return Response(
+                {"detail": "No inventory item found for this barcode."},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        return Response(BarcodeLookupSerializer(barcode_record).data, status=status.HTTP_200_OK)
 
 
 class TransactionListView(APIView):

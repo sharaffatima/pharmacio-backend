@@ -1,25 +1,45 @@
 from rest_framework import serializers
 
-from inventory.models import Inventory
+from inventory.models import Inventory, InventoryBarcode
 
 
 class InventoryListSerializer(serializers.ModelSerializer):
     product = serializers.CharField(source="product_name")
     quantity = serializers.IntegerField(source="quantity_on_hand")
     status = serializers.SerializerMethodField()
+    barcode = serializers.SerializerMethodField()
 
     class Meta:
         model = Inventory
-        fields = ["product", "quantity", "status"]
+        fields = ["id", "product", "strength", "quantity", "status", "barcode"]
 
     def get_status(self, obj):
         return "low" if obj.quantity_on_hand <= obj.min_threshold else "ok"
 
+    def get_barcode(self, obj):
+        prefetched_barcodes = getattr(obj, "_prefetched_objects_cache", {}).get("barcodes")
+        if prefetched_barcodes is not None:
+            return prefetched_barcodes[0].barcode if prefetched_barcodes else None
+
+        primary_barcode = obj.barcodes.filter(is_primary=True).first()
+        if primary_barcode is not None:
+            return primary_barcode.barcode
+
+        barcode = obj.barcodes.first()
+        return barcode.barcode if barcode is not None else None
+
 
 class InventoryCreateSerializer(serializers.ModelSerializer):
+    barcode = serializers.CharField(
+        max_length=128,
+        required=False,
+        allow_blank=True,
+        trim_whitespace=True,
+    )
+
     class Meta:
         model = Inventory
-        fields = ["product_name", "strength", "quantity_on_hand", "min_threshold"]
+        fields = ["product_name", "strength", "quantity_on_hand", "min_threshold", "barcode"]
 
     def validate(self, attrs):
         if Inventory.objects.filter(
@@ -28,6 +48,12 @@ class InventoryCreateSerializer(serializers.ModelSerializer):
         ).exists():
             raise serializers.ValidationError(
                 "An inventory item with this product name and strength already exists."
+            )
+
+        barcode = attrs.get("barcode", "")
+        if barcode and InventoryBarcode.objects.filter(barcode=barcode).exists():
+            raise serializers.ValidationError(
+                {"barcode": ["An inventory item with this barcode already exists."]}
             )
         return attrs
 
@@ -40,6 +66,17 @@ class InventoryCreateSerializer(serializers.ModelSerializer):
         if value < 0:
             raise serializers.ValidationError("min_threshold cannot be negative.")
         return value
+
+    def create(self, validated_data):
+        barcode = validated_data.pop("barcode", "")
+        item = Inventory.objects.create(**validated_data)
+        if barcode:
+            InventoryBarcode.objects.create(
+                inventory_item=item,
+                barcode=barcode,
+                is_primary=True,
+            )
+        return item
 
 
 class InventoryAdjustSerializer(serializers.Serializer):
