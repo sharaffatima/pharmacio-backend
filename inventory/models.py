@@ -29,3 +29,25 @@ class Inventory(models.Model):
                 name='inventory_product_strength_unique'
             ),
         ]
+
+
+class InventoryBarcode(models.Model):
+    inventory_item = models.ForeignKey(
+        Inventory,
+        on_delete=models.CASCADE,
+        related_name="barcodes",
+    )
+    barcode = models.CharField(max_length=128, unique=True)
+    is_primary = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return self.barcode
+
+    class Meta:
+        constraints = [
+            models.CheckConstraint(
+                condition=~models.Q(barcode=""),
+                name="inventory_barcode_not_blank",
+            ),
+        ]

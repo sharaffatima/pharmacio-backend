@@ -115,15 +115,17 @@ Supported opening balance columns:
 | `strength` | `strength`, `dosage`, `dose` |
 | `quantity_on_hand` | `quantity_on_hand`, `quantity`, `qty`, `stock`, `opening_stock`, `current_stock` |
 | `min_threshold` | `min_threshold`, `threshold`, `minimum_stock`, `reorder_level`, `min_stock` |
+| `barcode` | `barcode`, `bar_code`, `ean`, `ean_13`, `gtin`, `product_code`, `scan_code` |
 
 `product_name`, `strength`, and `quantity_on_hand` are required. `min_threshold` is optional and defaults to `0` when omitted.
+`barcode` is optional, but when present it must be unique and is stored as a fast POS lookup code for that inventory item.
 
 Example CSV:
 
 ```csv
-product,dosage,qty,reorder_level
-Aspirin,100mg,50,10
-Ibuprofen,400mg,20,5
+product,dosage,qty,reorder_level,barcode
+Aspirin,100mg,50,10,4012345678901
+Ibuprofen,400mg,20,5,4012345678902
 ```
 
 Successful opening balance uploads return the normal upload status fields plus import metadata:
@@ -140,7 +142,8 @@ Successful opening balance uploads return the normal upload status fields plus i
     "status": "completed",
     "total_rows": 2,
     "created_count": 2,
-    "updated_count": 0
+    "updated_count": 0,
+    "barcode_count": 2
   }
 }
 ```

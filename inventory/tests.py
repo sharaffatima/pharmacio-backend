@@ -3,7 +3,7 @@ from django.test import TestCase
 from rest_framework import status
 from rest_framework.test import APIClient
 
-from inventory.models import Inventory
+from inventory.models import Inventory, InventoryBarcode
 from rbac.models import AuditLog, Permission, Role, UserRole
 
 
@@ -65,6 +65,26 @@ class InventoryListApiTests(TestCase):
         self.assertEqual(result_by_product[low_item.product_name]["status"], "low")
         self.assertEqual(result_by_product[ok_item.product_name]["quantity"], 25)
         self.assertEqual(result_by_product[ok_item.product_name]["status"], "ok")
+
+    def test_inventory_list_includes_primary_barcode(self):
+        item = Inventory.objects.create(
+            product_name="Aspirin",
+            strength="100mg",
+            quantity_on_hand=25,
+            min_threshold=10,
+        )
+        InventoryBarcode.objects.create(
+            inventory_item=item,
+            barcode="4012345678901",
+            is_primary=True,
+        )
+
+        response = self.client.get("/api/v1/inventory/")
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        result = response.data["results"][0]
+        self.assertEqual(result["id"], item.id)
+        self.assertEqual(result["barcode"], "4012345678901")
 
 
 class InventoryAdjustApiTests(TestCase):
@@ -246,10 +266,58 @@ class InventoryCreateApiTests(TestCase):
         client.force_authenticate(user=self.permitted_user)
         resp = client.post(self.URL, self._payload(), format="json")
         self.assertEqual(resp.status_code, status.HTTP_201_CREATED)
+        self.assertIn("id", resp.data)
         self.assertEqual(resp.data["product"], "Aspirin")
+        self.assertEqual(resp.data["strength"], "100mg")
         self.assertEqual(resp.data["quantity"], 50)
         self.assertEqual(resp.data["status"], "ok")
+        self.assertIsNone(resp.data["barcode"])
         self.assertTrue(Inventory.objects.filter(product_name="Aspirin").exists())
+
+    def test_create_with_barcode_creates_lookup_mapping(self):
+        client = APIClient()
+        client.force_authenticate(user=self.permitted_user)
+
+        resp = client.post(
+            self.URL,
+            self._payload(barcode="4012345678901"),
+            format="json",
+        )
+
+        self.assertEqual(resp.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(resp.data["barcode"], "4012345678901")
+
+        item = Inventory.objects.get(product_name="Aspirin", strength="100mg")
+        barcode = InventoryBarcode.objects.get(barcode="4012345678901")
+        self.assertEqual(barcode.inventory_item, item)
+        self.assertTrue(barcode.is_primary)
+
+    def test_duplicate_barcode_returns_400(self):
+        existing_item = Inventory.objects.create(
+            product_name="Paracetamol",
+            strength="500mg",
+            quantity_on_hand=20,
+            min_threshold=5,
+        )
+        InventoryBarcode.objects.create(
+            inventory_item=existing_item,
+            barcode="4012345678901",
+            is_primary=True,
+        )
+
+        client = APIClient()
+        client.force_authenticate(user=self.permitted_user)
+        resp = client.post(
+            self.URL,
+            self._payload(barcode="4012345678901"),
+            format="json",
+        )
+
+        self.assertEqual(resp.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("barcode", resp.data)
+        self.assertFalse(
+            Inventory.objects.filter(product_name="Aspirin", strength="100mg").exists()
+        )
 
     def test_low_stock_status_on_create(self):
         client = APIClient()
@@ -302,3 +370,4 @@ class InventoryCreateApiTests(TestCase):
         self.assertIsNotNone(log)
         self.assertEqual(log.metadata["product_name"], "Aspirin")
         self.assertEqual(log.metadata["quantity_on_hand"], 50)
+        self.assertIsNone(log.metadata["barcode"])

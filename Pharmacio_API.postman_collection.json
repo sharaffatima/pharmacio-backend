@@ -997,7 +997,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"product_name\": \"Paracetamol\",\n  \"strength\": \"500mg\",\n  \"quantity_on_hand\": 100,\n  \"min_threshold\": 20\n}"
+              "raw": "{\n  \"product_name\": \"Paracetamol\",\n  \"strength\": \"500mg\",\n  \"quantity_on_hand\": 100,\n  \"min_threshold\": 20,\n  \"barcode\": \"{{barcode}}\"\n}"
             },
             "url": {
               "raw": "{{base_url}}/api/v1/inventory/",
@@ -1411,6 +1411,25 @@
           }
         },
         {
+          "name": "POS Barcode Lookup",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/pos/barcode-lookup/?barcode={{barcode}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "pos", "barcode-lookup", ""],
+              "query": [
+                {
+                  "key": "barcode",
+                  "value": "{{barcode}}"
+                }
+              ]
+            },
+            "description": "Looks up an inventory item by scanned barcode for fast POS cart entry."
+          }
+        },
+        {
           "name": "List Transactions",
           "request": {
             "method": "GET",
@@ -1491,6 +1510,10 @@
     {
       "key": "inventory_id",
       "value": "1"
+    },
+    {
+      "key": "barcode",
+      "value": "4012345678901"
     },
     {
       "key": "proposal_id",
