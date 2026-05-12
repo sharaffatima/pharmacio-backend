@@ -4,6 +4,7 @@ from inventory.models import Inventory, InventoryBarcode
 
 
 class InventoryListSerializer(serializers.ModelSerializer):
+    id = serializers.IntegerField(read_only=True)
     product = serializers.CharField(source="product_name")
     quantity = serializers.IntegerField(source="quantity_on_hand")
     status = serializers.SerializerMethodField()

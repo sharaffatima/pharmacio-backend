@@ -40,6 +40,8 @@ class InventoryListApiTests(TestCase):
         self.assertIn("results", response.data)
         self.assertEqual(response.data["count"], 21)
         self.assertEqual(len(response.data["results"]), 20)
+        self.assertTrue(all("id" in item for item in response.data["results"]))
+        self.assertTrue(all(isinstance(item["id"], int) for item in response.data["results"]))
 
     def test_inventory_list_includes_low_stock_indicator(self):
         low_item = Inventory.objects.create(

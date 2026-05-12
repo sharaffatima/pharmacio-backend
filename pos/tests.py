@@ -206,6 +206,45 @@ class POSCheckoutApiTests(TestCase):
         
         self.assertEqual(self.inventory_item.quantity_on_hand, 97)
 
+    def test_checkout_reduces_only_inventory_item_matching_id(self):
+        other_item = Inventory.objects.create(
+            product_name="Ibuprofen",
+            strength="400mg",
+            quantity_on_hand=40,
+            min_threshold=10,
+        )
+        client = APIClient()
+        client.force_authenticate(user=self.permitted_user)
+
+        payload = {
+            "items": [
+                {
+                    "inventory_id": other_item.pk,
+                    "quantity": 4,
+                    "unit_price": "2.50",
+                    "discount_percentage": "0.00",
+                }
+            ],
+            "payments": [
+                {
+                    "payment_method": "cash",
+                    "amount_paid": "10.00",
+                }
+            ],
+            "discount_percentage": "0.00",
+        }
+
+        response = client.post(self.URL, payload, format="json")
+
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.inventory_item.refresh_from_db()
+        other_item.refresh_from_db()
+
+        self.assertEqual(self.inventory_item.quantity_on_hand, 100)
+        self.assertEqual(other_item.quantity_on_hand, 36)
+        transaction_item = TransactionItem.objects.get()
+        self.assertEqual(transaction_item.inventory_item_id, other_item.pk)
+
     def test_insufficient_stock_returns_400_without_creating_transaction(self):
         client = APIClient()
         client.force_authenticate(user=self.permitted_user)
