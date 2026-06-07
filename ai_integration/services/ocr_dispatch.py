@@ -15,9 +15,12 @@ class OCRDispatchError(Exception):
 
 def dispatch_to_ocr_engine(*, job: OCRJob) -> None:
     """
-    Sends {job_id, file_reference, target_items} to the OCR engine.
+    Sends {job_id, file_reference, target_items, ocr_engine} to the OCR engine.
     Raises OCRDispatchError on failure.
     """
+    # Choose OCR engine: Gemini (fastest, recommended), easyocr, or huggingface
+    ocr_engine = getattr(settings, 'OCR_ENGINE_CHOICE', 'gemini')
+    
     low_stock_items = Inventory.objects.filter(quantity_on_hand__lte=F('min_threshold'))
     target_items = [
         {"product_name": item.product_name, "strength": item.strength}
@@ -27,10 +30,11 @@ def dispatch_to_ocr_engine(*, job: OCRJob) -> None:
     payload = {
         "job_id": str(job.job_id),
         "file_reference": job.file.s3_key,
+        "ocr_engine": ocr_engine,
         "target_items": target_items,
     }
     
-    logger.info(f"Dispatching job {job.job_id} to OCR engine at {settings.OCR_ENGINE_PROCESS_URL}")
+    logger.info(f"Dispatching job {job.job_id} to OCR engine at {settings.OCR_ENGINE_PROCESS_URL} (engine={ocr_engine})")
     logger.debug(f"Dispatch payload: {payload}")
 
     try:
